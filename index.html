@@ -1227,9 +1227,17 @@
     font-family:var(--sans); font-size:14px; font-weight:600; letter-spacing:0.01em;
     text-decoration:none; white-space:nowrap;
     box-shadow:0 8px 24px rgba(12,34,66,0.28);
-    transition:background .2s ease, transform .2s ease;
+    transition:background .2s ease, transform .2s ease, opacity .2s ease, visibility 0s linear 0s;
   }
   .is-expanded .sc-modal-cta:hover{ background:#081A34; transform:translateX(-50%) translateY(-2px); }
+  /* While a requirement card is open it owns the bottom edge (and carries its
+     own deeper "View in the framework" link), so the general CTA yields
+     instead of overlapping the card. It returns when the card closes. */
+  #fw-showcase.is-expanded .fw3d-detail.is-on ~ .sc-modal-cta,
+  #fw-showcase.is-expanded .fw-detail.is-open ~ .sc-modal-cta{
+    opacity:0; visibility:hidden; pointer-events:none;
+    transition:background .2s ease, transform .2s ease, opacity .2s ease, visibility 0s linear .2s;
+  }
 
   /* Expand architecture — a floating modal of the SAME live component */
   .sc-modal-backdrop{ position:fixed; inset:0; background:rgba(12,34,66,.62); -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); opacity:0; pointer-events:none; transition:opacity .3s ease; z-index:90; }
