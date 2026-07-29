@@ -1818,7 +1818,7 @@
 
       pdf.setFontSize(9);
       pdf.setTextColor(180, 200, 220);
-      pdf.text('SCL AI Requirements Framework v3.4', ML, 46);
+      pdf.text('SCL AI Requirements Framework v3.5', ML, 46);
 
       y = 66;
 
@@ -1826,7 +1826,7 @@
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(9);
       pdf.setTextColor(INK_MID[0], INK_MID[1], INK_MID[2]);
-      var preamble = 'This report documents the self assessment responses submitted against the SCL AI Requirements Framework v3.4. It captures the respondent\u2019s evaluation of their AI system across thirteen requirement areas. This report has not been independently verified by Safety Critical Labs and does not constitute a formal certification or determination.';
+      var preamble = 'This report documents the self assessment responses submitted against the SCL AI Requirements Framework v3.5. It captures the respondent\u2019s evaluation of their AI system across thirteen requirement areas. This report has not been independently verified by Safety Critical Labs and does not constitute a formal certification or determination.';
       var pLines = wrapText(pdf, preamble, CW);
       pdf.text(pLines, ML, y);
       y += pLines.length * 4.2 + 10;
@@ -1935,7 +1935,7 @@
       pdf.setFont('courier', 'normal');
       pdf.setFontSize(7);
       pdf.setTextColor(INK_LIGHT[0], INK_LIGHT[1], INK_LIGHT[2]);
-      pdf.text('Safety Critical Labs \u00b7 safetycriticallabs.com \u00b7 Framework v3.4', ML, PH - 12);
+      pdf.text('Safety Critical Labs \u00b7 safetycriticallabs.com \u00b7 Framework v3.5', ML, PH - 12);
       pdf.text('Report ' + reportId + ' \u00b7 Page 1', PW - MR, PH - 12, { align: 'right' });
 
       /* ─────────────────────────────────────────────
@@ -1962,7 +1962,7 @@
         pdf.setFont('courier', 'normal');
         pdf.setFontSize(7);
         pdf.setTextColor(INK_LIGHT[0], INK_LIGHT[1], INK_LIGHT[2]);
-        pdf.text('Safety Critical Labs \u00b7 safetycriticallabs.com \u00b7 Framework v3.4', ML, PH - 12);
+        pdf.text('Safety Critical Labs \u00b7 safetycriticallabs.com \u00b7 Framework v3.5', ML, PH - 12);
         pdf.text('Report ' + reportId + ' \u00b7 Page ' + pageNum, PW - MR, PH - 12, { align: 'right' });
       }
 
@@ -2116,7 +2116,7 @@
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(7.5);
       pdf.setTextColor(INK_LIGHT[0], INK_LIGHT[1], INK_LIGHT[2]);
-      var disclaimer = 'This report reflects a self assessment only. It does not constitute a formal certification, determination, or endorsement by Safety Critical Labs. The responses recorded herein have not been independently verified. To obtain a formal assessment against the SCL AI Requirements Framework, contact the SCL team. Safety Critical Labs \u00b7 DOI 10.5281/zenodo.20692967 \u00b7 Framework v3.4';
+      var disclaimer = 'This report reflects a self assessment only. It does not constitute a formal certification, determination, or endorsement by Safety Critical Labs. The responses recorded herein have not been independently verified. To obtain a formal assessment against the SCL AI Requirements Framework, contact the SCL team. Safety Critical Labs \u00b7 DOI 10.5281/zenodo.21666411 \u00b7 Framework v3.5';
       var dLines = wrapText(pdf, disclaimer, CW);
       pdf.text(dLines, ML, y);
 

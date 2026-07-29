@@ -94,7 +94,7 @@
     },
     {
       "q": "What version of the framework is current?",
-      "a": "The current published version is v3.4. The concept DOI at 10.5281/zenodo.19024420 always resolves to the latest version, so citing it keeps a reference current across updates. The documents page links the exact current release.",
+      "a": "The current published version is v3.5. The concept DOI at 10.5281/zenodo.19024420 always resolves to the latest version, so citing it keeps a reference current across updates. The documents page links the exact current release.",
       "keywords": ["version", "current", "latest", "release", "update", "which", "edition", "v3", "newest"],
       "link": "/documents"
     },
