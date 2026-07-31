@@ -11,6 +11,37 @@
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://safetycriticallabs.com/img/og-square.png">
 <meta name="theme-color" content="#FAF6EC">
+<!-- Structured data: ties the SCL brand entity to this domain for search
+     engines (sitelinks/knowledge panel eligibility). Homepage only. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://safetycriticallabs.com/#organization",
+      "name": "Safety Critical Labs",
+      "alternateName": "SCL",
+      "url": "https://safetycriticallabs.com/",
+      "logo": "https://safetycriticallabs.com/img/SCL_Logo_transparent.png",
+      "description": "Safety Critical Labs is an AI certification authority for safety critical systems. Formal determinations issued against a published, citable standard.",
+      "email": "kevin.williams@safetycriticallabs.com",
+      "sameAs": [
+        "https://github.com/safetycriticallabs",
+        "https://doi.org/10.5281/zenodo.19024420"
+      ]
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://safetycriticallabs.com/#website",
+      "name": "Safety Critical Labs",
+      "alternateName": "SCL",
+      "url": "https://safetycriticallabs.com/",
+      "publisher": { "@id": "https://safetycriticallabs.com/#organization" }
+    }
+  ]
+}
+</script>
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
