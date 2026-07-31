@@ -687,6 +687,20 @@ h2.section-title em { font-style: italic; color: var(--ink); font-family: var(--
   .global-nav.gn-compact .gn-text-full { opacity: 0; clip-path: inset(0 100% 0 0); transition: opacity 0.34s ease 0s, clip-path 0.44s cubic-bezier(0.5,0,0.2,1) 0s; }
   .global-nav.gn-compact .gn-text-abbr { opacity: 1; transition: opacity 0.34s ease 0.34s; }
 }
+/* Phone wordmark — the static "SCL" still carried the legacy metallic-chrome
+   gradient (the pre-shell identity). Flatten it to the same ink navy as the
+   desktop collapsed mark so the mobile bar matches the current shell. */
+@media (max-width: 480px) {
+  .gn-text-abbr {
+    background: none !important;
+    -webkit-text-fill-color: #0C2242 !important;
+    color: #0C2242 !important;
+    filter: none !important;
+    letter-spacing: 0.02em;
+  }
+}
+/* Menu icon: ink navy like the rest of the bar (was legacy brand blue). */
+.gn-hamburger span { background: #0C2242; }
 @media (min-width: 881px) {
   .gn-links { margin-left: auto; gap: clamp(18px, 2vw, 28px); }
   .gn-search { margin-left: 12px; }
