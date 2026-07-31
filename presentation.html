@@ -802,6 +802,35 @@ td:first-child { color: var(--ink); font-weight: 500; }
   .cover-globe-cap { opacity: 1; transition: none; }
 }
 @media (max-width: 900px) { .title-slide.cover-split { grid-template-columns: 1fr; gap: 22px; } .cover-visual { height: 40vh; order: -1; } .cover-split .title-heading { font-size: clamp(30px, 8vw, 40px); } }
+
+/* ── Phone chrome. The media query below must stay IDENTICAL to the
+   mobileMQ string in the deck script (matchMedia keeps CSS and JS agreeing
+   even at fractional-DPR widths): any viewport under 700px, plus touch
+   devices up to 985px so landscape phones and portrait tablets keep the
+   fitted deck + bar instead of falling onto the desktop 0.85 zoom floor.
+   Fixed nav bar lives OUTSIDE the zoomed .deck-canvas so its buttons stay
+   thumb-sized while slides scale to fit the screen width. */
+.brand-short { display: none; }
+.mobile-nav { display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; align-items: center; gap: 12px; padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); background: var(--bg); border-top: 1px solid var(--rule); }
+.mobile-nav button { flex: 1; min-height: 48px; padding: 11px 12px; background: transparent; border: 1px solid var(--rule); border-radius: 8px; color: var(--ink2); font-size: 14px; font-weight: 500; letter-spacing: 0.02em; }
+.mobile-nav button.primary { background: var(--ink); border-color: var(--ink); color: #FAF9F5; }
+.mobile-nav button:disabled { background: transparent; color: var(--rule); border-color: var(--rule); cursor: default; }
+.mobile-nav-pos { font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; color: var(--ink3); white-space: nowrap; }
+@media (max-width: 699px), (max-width: 985px) and (pointer: coarse) {
+  .header { padding: env(safe-area-inset-top) 14px 0; height: calc(60px + env(safe-area-inset-top)); gap: 12px; }
+  /* the globe intro's fixed caption (z 51) would otherwise draw across the
+     nav bar (z 50) — keep its bottom edge clear of the bar */
+  .cover-tour-name { bottom: calc(110px + env(safe-area-inset-bottom)); }
+  .header-menu { height: 44px; min-width: 44px; }
+  .header-brand .brand-full { display: none; }
+  .header-brand .brand-short { display: inline; }
+  .header-counter { display: none; }
+  .header-cta { height: 40px; padding: 0 16px; font-size: 13px; }
+  .sidebar { width: min(300px, 85vw); }
+  .content { padding-bottom: calc(69px + env(safe-area-inset-bottom)); }
+  .nav-footer { display: none; }
+  .mobile-nav { display: flex; }
+}
 </style>
 </head>
 <body>
@@ -810,7 +839,7 @@ td:first-child { color: var(--ink); font-weight: 500; }
 <div class="app">
   <div class="header">
     <button class="header-menu" onclick="toggleNav()" aria-label="Open slide menu"><span class="bars"><i></i><i></i><i></i></span>Slides</button>
-    <a class="header-brand" href="https://safetycriticallabs.com" aria-label="Safety Critical Labs">Safety Critical Labs</a>
+    <a class="header-brand" href="https://safetycriticallabs.com" aria-label="Safety Critical Labs"><span class="brand-full">Safety Critical Labs</span><span class="brand-short">SCL</span></a>
     <div class="header-right">
       <span class="header-counter" id="counter">1/22</span>
       <a class="header-cta" href="https://safetycriticallabs.com/contact">Get Certified</a>
@@ -822,6 +851,11 @@ td:first-child { color: var(--ink); font-weight: 500; }
     <div class="content" id="content"></div>
   </div>
   <div class="nav-backdrop" id="navBackdrop" onclick="closeNav()"></div>
+  <div class="mobile-nav" id="mobileNav">
+    <button id="mobilePrev" onclick="prev()">Previous</button>
+    <span class="mobile-nav-pos" id="mobileNavPos"></span>
+    <button id="mobileNext" class="primary" onclick="next()">Next</button>
+  </div>
 </div>
 
 <script>
@@ -4111,6 +4145,12 @@ function renderContact(data) {
 
 function updateCounter() {
   document.getElementById('counter').textContent = (currentIndex + 1) + '/' + flatSections.length;
+  var pos = document.getElementById('mobileNavPos');
+  if (pos) pos.textContent = (currentIndex + 1) + ' / ' + flatSections.length;
+  var mp = document.getElementById('mobilePrev');
+  var mn = document.getElementById('mobileNext');
+  if (mp) mp.disabled = currentIndex === 0;
+  if (mn) mn.disabled = currentIndex === flatSections.length - 1;
 }
 
 function goTo(i) {
@@ -4226,9 +4266,20 @@ function fitDeck() {
   }
   canvas.style.width = DECK_CANVAS_W + 'px';
   var z = content.clientWidth / DECK_CANVAS_W;
-  z = Math.max(0.85, Math.min(z, 1.9));
+  /* 0.85 legibility floor is desktop-only; on phone-chrome viewports the
+     slide must fit the screen width with no horizontal overflow. */
+  var zMin = mobileMQ.matches ? 0 : 0.85;
+  z = Math.max(zMin, Math.min(z, 1.9));
   canvas.style.zoom = z;
 }
+
+/* Must stay IDENTICAL to the phone-chrome media query in the style block —
+   matchMedia (not innerWidth) so CSS and JS cannot disagree at fractional
+   devicePixelRatio widths, and touch devices keep the fitted deck through
+   rotation (landscape phones / portrait tablets up to 985px). */
+var mobileMQ = window.matchMedia('(max-width: 699px), (max-width: 985px) and (pointer: coarse)');
+mobileMQ.addEventListener ? mobileMQ.addEventListener('change', fitDeck)
+                          : mobileMQ.addListener(fitDeck);
 
 function toggleNav() {
   var s = document.getElementById('sidebar');
@@ -4245,6 +4296,37 @@ function closeNav() {
 }
 
 window.addEventListener('resize', fitDeck);
+
+/* Phone swipe navigation. Passive listeners, decided on touchend, so page
+   scrolling is never blocked. Swipes that start inside regions that handle
+   their own pointer/touch input (or scroll horizontally) are ignored. */
+(function () {
+  var content = document.getElementById('content');
+  if (!content) return;
+  var SWIPE_IGNORE = 'canvas, svg, button, a, input, select, textarea, .cover-visual, .fw3d-stage';
+  var sx = 0, sy = 0, ss = 0, live = false;
+  content.addEventListener('touchstart', function (e) {
+    live = false;
+    if (!mobileMQ.matches || e.touches.length !== 1) return;
+    var t = e.target;
+    if (t && t.closest && t.closest(SWIPE_IGNORE)) return;
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
+    ss = content.scrollTop;
+    live = true;
+  }, { passive: true });
+  content.addEventListener('touchcancel', function () { live = false; }, { passive: true });
+  content.addEventListener('touchend', function (e) {
+    if (!live) return;
+    live = false;
+    var t = e.changedTouches[0];
+    var dx = t.clientX - sx, dy = t.clientY - sy;
+    /* a gesture that actually scrolled the slide is a scroll, not a swipe */
+    if (Math.abs(content.scrollTop - ss) > 10) return;
+    if (Math.abs(dx) < 60 || Math.abs(dx) <= Math.abs(dy) * 1.5) return;
+    if (dx < 0) next(); else prev();
+  }, { passive: true });
+})();
 
 document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight') { e.preventDefault(); next(); }
