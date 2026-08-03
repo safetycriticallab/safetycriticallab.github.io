@@ -20,6 +20,13 @@
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
+  /* iOS inflates text inside the zoom-scaled sheet (font boosting), so lines
+     re-wrap, .body-footer's margin-top:auto collapses, and the verify block +
+     QR get pushed past the fixed 11in edge into overflow:hidden — they vanish
+     on iPhone while desktop is fine. Pinning the adjust keeps the sheet's type
+     at its authored size, so the phone lays out exactly like the desktop. */
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
   /* Embed mode (?embed): drop the page chrome so the certificate itself fills
      the frame — used when this template is iframed into the homepage cert card. */
   html.embed, html.embed body { margin: 0 !important; padding: 0 !important; background: #fff !important; display: block !important; min-height: 0 !important; }
