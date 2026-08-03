@@ -3512,8 +3512,16 @@ function initCoverGlobe() {
   var tourI = 0, tourYaw = 0, tourMoving = true, dwellAt = 0, tourInit = false, lastLabel = -1;
   function yawFor(nd) { return Math.atan2(-nd.v[0], nd.v[2]); }
   function angNorm(a) { a = a % (2 * Math.PI); if (a > Math.PI) a -= 2 * Math.PI; else if (a < -Math.PI) a += 2 * Math.PI; return a; }
+  /* Recomputed every frame, deliberately NOT cached. The canvas is viewport-
+     fixed but .cover-visual scrolls with the deck, and on a phone the cover
+     slide is taller than the viewport. A cached target went stale the moment
+     you scrolled, leaving the globe parked over the headline (~205px of
+     overlap at the scroll limit). Reading one rect per frame keeps it welded
+     to its column and, unlike a scroll listener, can't be outrun by iOS
+     momentum scrolling. The read is cheap: this loop only paints canvas, so it
+     never dirties layout. `target` still exists so resize() can force a
+     recompute before the next frame. */
   function targetRect() {
-    if (target) return target;
     var t = { cx: canvas.width * 0.5, cy: canvas.height * 0.5, R: Math.min(canvas.width, canvas.height) * 0.30 };
     if (visual) { var r = visual.getBoundingClientRect(); if (r.width > 4 && r.height > 4) t = { cx: (r.left + r.width / 2) * DPR, cy: (r.top + r.height / 2) * DPR, R: Math.min(r.width, r.height) * 0.46 * DPR }; }
     target = t; return t;
