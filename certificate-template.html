@@ -20,13 +20,6 @@
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
-  /* iOS inflates text inside the zoom-scaled sheet (font boosting), so lines
-     re-wrap, .body-footer's margin-top:auto collapses, and the verify block +
-     QR get pushed past the fixed 11in edge into overflow:hidden — they vanish
-     on iPhone while desktop is fine. Pinning the adjust keeps the sheet's type
-     at its authored size, so the phone lays out exactly like the desktop. */
-  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
-
   /* Embed mode (?embed): drop the page chrome so the certificate itself fills
      the frame — used when this template is iframed into the homepage cert card. */
   html.embed, html.embed body { margin: 0 !important; padding: 0 !important; background: #fff !important; display: block !important; min-height: 0 !important; }
@@ -521,24 +514,34 @@
   }
   .drag-hint:focus-visible { outline: 2px solid var(--navy-light); outline-offset: 2px; border-radius: 4px; }
 
-  /* Small screens: scale the fixed 8.5in sheet to fit the viewport. Without
-     this the flex-centered 816px sheet overflows both edges and the left
-     half is unreachable (you can't scroll into negative x). `zoom` scales
-     layout; `safe center` + overflow-x keep a pannable fallback where zoom
-     is unsupported. Screen only — print and ?embed are untouched. */
+  /* Small screens: fit the fixed 8.5in sheet to the viewport with
+     transform:scale, NOT zoom.
+
+     zoom changes the sheet's *layout* size, so iOS re-evaluates the type
+     inside it: text inflates relative to the sheet, lines re-wrap taller,
+     .body-footer's margin-top:auto collapses, and the verify block + QR fall
+     past the fixed 11in edge into overflow:hidden — invisible on iPhone while
+     desktop looks fine. transform is a purely visual scale, so the sheet still
+     lays out at its authored 816px and the phone wraps exactly like desktop.
+     text-size-adjust then stops iOS boosting type in that full-width block.
+
+     The negative margin reclaims the layout space the unscaled box reserves
+     (which also lets body's justify-content:center centre the sheet properly),
+     and overflow-x:hidden hides the now purely-visual horizontal overhang.
+     Screen only — print and ?embed are untouched. */
   @media screen and (max-width: 880px) {
-    html:not(.embed) body { padding: 24px 12px; align-items: safe center; overflow-x: auto; }
-    html:not(.embed) .certificate { zoom: 0.72; }
+    html:not(.embed) { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+    html:not(.embed) body { padding: 24px 12px; overflow-x: hidden; }
+    html:not(.embed) .cert-stage {
+      --cert-s: 0.72;
+      transform: scale(var(--cert-s));
+      transform-origin: top center;
+      margin-bottom: calc((var(--cert-s) - 1) * 11in);
+    }
   }
-  @media screen and (max-width: 620px) {
-    html:not(.embed) .certificate { zoom: 0.55; }
-  }
-  @media screen and (max-width: 460px) {
-    html:not(.embed) .certificate { zoom: 0.44; }
-  }
-  @media screen and (max-width: 350px) {
-    html:not(.embed) .certificate { zoom: 0.38; }
-  }
+  @media screen and (max-width: 620px) { html:not(.embed) .cert-stage { --cert-s: 0.55; } }
+  @media screen and (max-width: 460px) { html:not(.embed) .cert-stage { --cert-s: 0.44; } }
+  @media screen and (max-width: 350px) { html:not(.embed) .cert-stage { --cert-s: 0.38; } }
 
   /* PRINT */
   @media print {
