@@ -1,7 +1,7 @@
 {
   "register": {
     "authority": "Safety Critical Labs",
-    "updated": "2026-07-04",
+    "updated": "2026-08-13",
     "issued_count": 0
   },
   "certificates": [
@@ -11,8 +11,8 @@
       "system": "Specimen certificate",
       "organization": "Safety Critical Labs",
       "classification": null,
-      "framework_version": "v3.5",
-      "framework_doi": "10.5281/zenodo.21716902",
+      "framework_version": "v3.6",
+      "framework_doi": "10.5281/zenodo.21924937",
       "issued": null,
       "expires": null,
       "sha256": null,
