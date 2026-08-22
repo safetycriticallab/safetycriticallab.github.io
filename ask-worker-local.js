@@ -34,7 +34,18 @@
 const DEFAULT_MODEL = 'llama3.1:latest';
 const MAX_QUESTION_CHARS = 500;
 const FAQ_URL = 'https://safetycriticallabs.com/faq.json';
+const FRAMEWORK_URL = 'https://safetycriticallabs.com/framework.json';
 const UPSTREAM_TIMEOUT_MS = 90000; // cold start: model load + prompt eval can near a minute
+
+// Framework excerpts appended per question, capped so the whole prompt stays
+// inside num_ctx 8192: ~350 instructions + ~3.4k FAQ + <=2.5k excerpts + question.
+// Scoring must stay in lockstep with scoring_mirror.py (the offline test bench).
+const EXCERPT_BUDGET_CHARS = 8000;
+const EXCERPT_MAX_PICK = 5;
+const EXCERPT_ABS_MIN = 4.5;
+const EXCERPT_REL_MIN = 0.35;
+const MAX_QUERY_TOKENS = 20; // CPU guard: a 500-char question can hold ~100 tokens,
+                             // and scan cost scales linearly with token count
 
 const ALLOWED_ORIGINS = [
   'https://safetycriticallabs.com',
@@ -67,13 +78,115 @@ function reply(status, body, origin) {
 
 const SYSTEM_INSTRUCTIONS = `You are the question-answering assistant on the public website of Safety Critical Labs (SCL), an independent certification authority for AI in safety-critical systems. SCL publishes the AI Requirements Framework: ten core requirement areas (AI-1 through AI-10) plus three conditional architecture and paradigm areas (AI-11 multi-model, AI-12 neural networks, AI-13 continuous learning), anchored in standards like DO-178C, ISO 26262, and NPR 7150.2D.
 
-Answer using ONLY the reference entries provided below. Rules:
-- Keep answers to 2 to 5 short sentences, plain text, no markdown formatting, no em dashes.
+Answer using ONLY the reference entries provided below. The entries are SCL's FAQ, sometimes followed by verbatim excerpts from the AI Requirements Framework v3.3 standard. Rules:
+- Keep answers to 2 to 6 short sentences, plain text, no markdown formatting, no em dashes.
+- When you answer from framework excerpts, cite the requirement IDs you used, for example (AI-4.1). Never cite an ID that is not present in the provided excerpts, and never invent requirement text.
 - If the reference entries do not cover the question, say so plainly and point the visitor to the contact page at /contact.html. Never guess or invent facts, certifications, clients, partnerships, or status.
 - Do not overstate SCL's status. SCL is pre-accreditation: ANAB intake is on file and a fee estimate was received, but formal engagement is deferred until certification volume supports it.
 - If asked something unrelated to SCL, AI assurance, or safety-critical certification, politely decline and redirect to what you can help with.
 
 Reference entries follow.`;
+
+/* ── Framework retrieval: score chunks against the question, keep the best
+   few under a hard character budget. Company questions score below the
+   threshold and get no excerpts, keeping those prompts short and fast. ── */
+
+const STOPWORDS = new Set(['the','a','an','is','are','was','were','be','been','of','for','to','on','in','by','with','at','as','from','and','or','but','if','then','so','also','do','does','did','can','could','will','would','should','may','might','i','my','me','you','your','we','our','us','they','them','it','its','this','that','these','those','there','here','not','please','just','like','some','any','what','how','where','when','why','who','which','about','tell','need','want','have','has','framework','scl','much','safety','critical','labs']);
+
+function tokenize(s) {
+  return s.toLowerCase().replace(/[^a-z0-9.\- ]+/g, ' ').split(/\s+/)
+    .filter(function (w) { return w.length >= 3 && !STOPWORDS.has(w); });
+}
+
+function stemToken(t) {
+  // light suffix stemming so "relying" reaches "reliance", "applies" reaches
+  // "applicability"; matches scoring_mirror.py exactly
+  if (t.length > 5) t = t.replace(/(ings|ing|ed|es|ly|s)$/, '');
+  else t = t.replace(/s$/, '');
+  if (t.length > 4 && t.charAt(t.length - 1) === 'y') t = t.slice(0, -1);
+  return t;
+}
+
+function selectExcerpts(question, framework) {
+  var entries = (framework && framework.entries) || [];
+  if (!entries.length) return '';
+  var qTokens = tokenize(question).slice(0, MAX_QUERY_TOKENS);
+  var qNorm = question.toLowerCase();
+  var stems = qTokens.map(stemToken);
+
+  // precompute searchable fields
+  var fields = entries.map(function (c) {
+    return { title: c.title.toLowerCase(), kw: (c.keywords || []).join(' ').toLowerCase(), text: c.text.toLowerCase() };
+  });
+
+  // Single pass over the corpus per stem: document frequency for the rarity
+  // weight AND the per-entry hit set, so the scoring loop never rescans texts
+  // (the scans are the dominant CPU cost at 270KB of corpus).
+  var weights = [];
+  var textHits = [];
+  for (var si = 0; si < stems.length; si++) {
+    var hits = new Set();
+    for (var fi = 0; fi < fields.length; fi++) {
+      if (fields[fi].text.indexOf(stems[si]) !== -1) hits.add(fi);
+    }
+    weights.push(hits.size > 0 ? 1 / (1 + Math.log(hits.size)) : 0.6);
+    textHits.push(hits);
+  }
+
+  var scored = [];
+  var top = 0;
+  for (var i = 0; i < entries.length; i++) {
+    var c = entries[i], f = fields[i];
+    var score = 0;
+    // direct requirement-id mention ("ai-4.1", "ai-12") is a strong signal;
+    // reject prefix collisions ("ai-1" inside "ai-12") by refusing matches
+    // followed by a digit (a following "." is the parent-area case, kept).
+    var idLower = c.id.toLowerCase();
+    var p = qNorm.indexOf(idLower);
+    while (p !== -1 && /\d/.test(qNorm.charAt(p + idLower.length))) p = qNorm.indexOf(idLower, p + 1);
+    if (p !== -1) score += 100;
+    for (var j = 0; j < stems.length; j++) {
+      // pair bonus first: it uses the raw tokens (always >=3 chars), so a
+      // short stem must not suppress it
+      if (j + 1 < qTokens.length) {
+        var pair = qTokens[j] + ' ' + qTokens[j + 1];
+        if (f.title.indexOf(pair) !== -1 || f.kw.indexOf(pair) !== -1) score += 12;
+      }
+      var st = stems[j];
+      if (st.length < 3) continue;
+      var w = weights[j];
+      if (f.title.indexOf(st) !== -1) score += 10 * w;
+      if (f.kw.indexOf(st) !== -1) score += 8 * w;
+      if (textHits[j].has(i)) score += 2 * w;
+    }
+    // whole-phrase alias: multi-word keyword appearing verbatim in the question
+    var kws = c.keywords || [];
+    for (var k = 0; k < kws.length; k++) {
+      if (kws[k].length >= 8 && kws[k].indexOf(' ') !== -1 && qNorm.indexOf(kws[k]) !== -1) score += 15;
+    }
+    if (score > top) top = score;
+    scored.push({ s: score, c: c });
+  }
+
+  var floor = Math.max(EXCERPT_ABS_MIN, EXCERPT_REL_MIN * top);
+  var keep = scored.filter(function (x) { return x.s >= floor; });
+  if (!keep.length) return '';
+  keep.sort(function (a, b) { return b.s - a.s; });
+  var used = 0;
+  var picked = [];
+  for (var m = 0; m < keep.length && picked.length < EXCERPT_MAX_PICK; m++) {
+    var cc = keep[m].c;
+    if (used + cc.text.length > EXCERPT_BUDGET_CHARS) continue;
+    used += cc.text.length;
+    picked.push(cc);
+  }
+  if (!picked.length) return '';
+  var parts = ['\n\n--- Verbatim excerpts from the AI Requirements Framework v' + (framework.version || '3.3') + ' (cite these IDs) ---'];
+  for (var n = 0; n < picked.length; n++) {
+    parts.push('\n[' + picked[n].id + '] ' + picked[n].title + '\n' + picked[n].text);
+  }
+  return parts.join('\n');
+}
 
 export default {
   async fetch(request, env) {
@@ -122,6 +235,15 @@ export default {
       return reply(503, { error: 'Reference material unavailable, try again shortly' }, origin);
     }
 
+    // Framework corpus is best-effort: retrieval failure degrades to FAQ-only.
+    let excerpts = '';
+    try {
+      const fwResp = await fetch(FRAMEWORK_URL, { cf: { cacheTtl: 300, cacheEverything: true } });
+      if (fwResp.ok) excerpts = selectExcerpts(question, await fwResp.json());
+    } catch (e) {
+      excerpts = '';
+    }
+
     const upstreamHeaders = { 'Content-Type': 'application/json' };
     // Service-token auth for the Cloudflare Access application in front of
     // the tunnel; without these, Access turns requests away before Ollama.
@@ -147,11 +269,13 @@ export default {
           model: env.OLLAMA_MODEL || DEFAULT_MODEL,
           stream: false,
           keep_alive: '1h',
-          // num_ctx must clear the ~3.4k-token FAQ context; Ollama's default
-          // window would silently truncate the grounding.
+          // num_ctx must clear instructions + FAQ + excerpts; Ollama's default
+          // window would silently truncate the grounding. Excerpts go LAST in
+          // the system block so the stable instructions+FAQ prefix stays
+          // reusable in Ollama's KV prefix cache across questions.
           options: { temperature: 0.2, num_ctx: 8192, num_predict: 300 },
           messages: [
-            { role: 'system', content: SYSTEM_INSTRUCTIONS + '\n\n' + faqText },
+            { role: 'system', content: SYSTEM_INSTRUCTIONS + '\n\n' + faqText + excerpts },
             { role: 'user', content: question },
           ],
         }),
