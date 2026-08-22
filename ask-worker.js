@@ -29,12 +29,20 @@ const ALLOWED_ORIGINS = [
   'https://safetycriticallabs.github.io',
 ];
 
+// Exact-host match; a bare startsWith('http://localhost') would also admit
+// registrable domains like http://localhost.evil.com.
+const LOCALHOST_ORIGIN_RE = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+
+function originAllowed(origin) {
+  return ALLOWED_ORIGINS.includes(origin) || LOCALHOST_ORIGIN_RE.test(origin);
+}
+
 function corsHeaders(origin) {
-  const allowed = ALLOWED_ORIGINS.includes(origin) || (origin && origin.startsWith('http://localhost'));
   return {
-    'Access-Control-Allow-Origin': allowed ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Origin': originAllowed(origin) ? origin : ALLOWED_ORIGINS[0],
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Max-Age': '86400',
     'Vary': 'Origin',
     'Content-Type': 'application/json',
   };
@@ -64,7 +72,7 @@ export default {
     if (request.method !== 'POST') {
       return reply(405, { error: 'POST only' }, origin);
     }
-    if (origin && !ALLOWED_ORIGINS.includes(origin) && !origin.startsWith('http://localhost')) {
+    if (origin && !originAllowed(origin)) {
       return reply(403, { error: 'Origin not allowed' }, origin);
     }
 
