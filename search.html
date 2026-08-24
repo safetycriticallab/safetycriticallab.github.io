@@ -90,6 +90,9 @@
 .search-form:focus-within {
   box-shadow: 0 4px 24px rgba(46,109,180,0.16);
 }
+/* Composer mode: once a conversation exists the form relocates below the
+   thread and compacts from hero question box to chat composer */
+.search-form.is-composer { min-height: 0; padding: 14px 18px; margin-top: 18px; }
 
 .search-input-row {
   display: flex;
@@ -666,6 +669,7 @@
   }
 
   function renderAskFallback(q) {
+    composerHome();   /* library view reads top-down from the hero box */
     if (faqFailed) { renderLibraryError(); return; }
     if (!faqLoaded) {
       /* park the query and clear the dead thread; a blinking caret with no
@@ -688,6 +692,22 @@
   var convo = [];
   var thread = null;
   var threadFooter = null;
+  /* Chat ergonomics: after the first answer the form moves below the thread
+     (read at the bottom, type at the bottom); it returns to the hero on
+     "New conversation" and on any fall back to library mode. */
+  var formHome = { parent: form.parentNode, next: form.nextSibling };
+  function composerDown() {
+    if (form.classList.contains('is-composer')) return;
+    form.classList.add('is-composer');
+    resultsWrap.insertBefore(form, resultsList.nextSibling);
+  }
+  function composerHome() {
+    if (threadFooter && threadFooter.parentNode) threadFooter.parentNode.removeChild(threadFooter);
+    threadFooter = null;
+    if (!form.classList.contains('is-composer')) return;
+    form.classList.remove('is-composer');
+    formHome.parent.insertBefore(form, formHome.next);
+  }
   /* Turn generation: bumped by "New conversation" so an abandoned in-flight
      stream can never write its answer into the fresh conversation. Every
      completion handler no-ops when its captured generation is stale. */
@@ -758,11 +778,12 @@
       '<p class="ask-disclosure">' + ASK_DISCLOSURE + '</p>'
       + '<div class="ask-thread-footer"><button type="button" class="ask-new" id="ask-new">New conversation</button></div>'
       + relatedHtml(q);
-    resultsList.appendChild(threadFooter);
+    resultsWrap.appendChild(threadFooter);   /* below the composer, outside the list innerHTML wipes */
     document.getElementById('ask-new').addEventListener('click', function () {
       askGen++;   /* orphan any in-flight stream: its handlers check this */
       askBusy = false;
-      convo = []; thread = null; threadFooter = null;
+      convo = []; thread = null;
+      composerHome();
       input.value = '';
       input.placeholder = 'Ask a question';
       hideResults();
@@ -776,6 +797,7 @@
     convo.push({ role: 'assistant', content: text });
     resultsLabel.textContent = 'Conversation';
     input.placeholder = 'Ask a follow-up';
+    composerDown();
     ensureThreadFooter(q);
     ai.art.scrollIntoView({ block: 'nearest' });
   }
@@ -804,7 +826,7 @@
       if (kind === 'busy') { input.value = q; aiNote(ai, 'Ask SCL is answering another visitor right now. Give it a few seconds and ask again.'); return; }
       if (kind === 'rate') { input.value = q; aiNote(ai, 'That is a lot of questions in quick succession. Give it a minute and ask again.'); return; }
       if (kind === 'invalid') { input.value = q; aiNote(ai, (msg || 'That question could not be accepted.') + ' Adjust it and try again.'); return; }
-      if (firstTurn) { convo = []; thread = null; threadFooter = null; renderAskFallback(q); return; }
+      if (firstTurn) { convo = []; thread = null; renderAskFallback(q); return; }
       aiNote(ai, 'The assistant is unavailable right now. Your conversation is still here; try again in a moment.');
     }
 
