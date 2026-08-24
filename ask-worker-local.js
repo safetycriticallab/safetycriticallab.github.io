@@ -27,12 +27,36 @@
  *   - Protect the hostname with a Cloudflare Access application whose policy
  *     is Service Auth + the service token above. Ollama itself has no auth.
  *
- * Contract: POST {question: string} -> 200 {answer: string}
- *           4xx/5xx {error: string}
+ * Contract: POST {question: string, history?: [{role,content}...], stream?: true}
+ *           stream:true  -> 200 text/plain streamed answer tokens
+ *           otherwise    -> 200 {answer: string}
+ *           4xx/5xx {error: string}; 429 {error:'busy'|'rate'} (see below)
+ *   history is the prior conversation (client-held, no server state), capped
+ *   server-side; retrieval runs per turn on the latest question (+ previous
+ *   user turn so short follow-ups keep their subject).
+ *
+ * Rate limiting: per-isolate token bucket (RATE_MAX per RATE_WINDOW_MS per IP)
+ * plus a global in-flight cap (Ollama serializes; queueing helps nobody).
+ * Per-isolate means per-PoP and resets on isolate recycle — polite-traffic
+ * protection only. The robust option remains a Cloudflare WAF rate rule on a
+ * custom route (workers.dev cannot get zone WAF).
  */
 
 const DEFAULT_MODEL = 'llama3.1:latest';
 const MAX_QUESTION_CHARS = 500;
+const MAX_HISTORY_MSGS = 8;          // most recent turns kept
+const MAX_HISTORY_MSG_CHARS = 1200;  // each turn truncated to this
+// Token budget guard (chars/3.5 ≈ tokens): instructions ~0.7k + FAQ ~4k +
+// excerpts <=2.3k + question ~0.15k leaves ~1k tokens of the 8192 num_ctx
+// for history. 2800 chars ≈ 0.8k tokens keeps the grounding from being
+// silently truncated by a long conversation.
+const MAX_HISTORY_TOTAL_CHARS = 2800;
+const STREAM_IDLE_MS = 90000;        // per-read watchdog while streaming (first token can
+                                     // near a minute on cold start; later gaps mean a stall)
+const MAX_BODY_BYTES = 16384;        // question + capped history
+const RATE_MAX = 10;                 // requests per IP per window
+const RATE_WINDOW_MS = 60000;
+const MAX_IN_FLIGHT = 2;             // Ollama serializes; a 3rd request would just hold a connection
 const FAQ_URL = 'https://safetycriticallabs.com/faq.json';
 const FRAMEWORK_URL = 'https://safetycriticallabs.com/framework.json';
 const UPSTREAM_TIMEOUT_MS = 90000; // cold start: model load + prompt eval can near a minute
@@ -76,7 +100,66 @@ function reply(status, body, origin) {
   return new Response(JSON.stringify(body), { status, headers: corsHeaders(origin) });
 }
 
-const SYSTEM_INSTRUCTIONS = `You are Ask SCL, the question-answering assistant on the public website of Safety Critical Labs (SCL), an independent certification authority for AI in safety-critical systems. You are a large language model, an open-weight Llama 3.1 model that SCL self-hosts on its own hardware. No third-party AI service is involved and questions are not sent to any cloud AI provider. If a visitor asks what you are or how you work, answer plainly from this paragraph. You are an informational assistant only and play no part in certification decisions. SCL publishes the AI Requirements Framework: ten core requirement areas (AI-1 through AI-10) plus three conditional architecture and paradigm areas (AI-11 multi-model, AI-12 neural networks, AI-13 continuous learning), anchored in standards like DO-178C, ISO 26262, and NPR 7150.2D.
+/* ── Rate limiting (per-isolate; see header note) ── */
+const rateHits = new Map();   // ip -> [timestamps]
+let inFlight = 0;
+function rateLimited(ip) {
+  const now = Date.now();
+  if (rateHits.size > 500) {
+    for (const [k, v] of rateHits) { if (now - v[v.length - 1] > RATE_WINDOW_MS) rateHits.delete(k); }
+  }
+  const hits = (rateHits.get(ip) || []).filter((t) => now - t < RATE_WINDOW_MS);
+  if (hits.length >= RATE_MAX) { rateHits.set(ip, hits); return true; }
+  hits.push(now);
+  rateHits.set(ip, hits);
+  return false;
+}
+
+/* History arrives client-held and untrusted: whitelist roles, truncate each
+   turn, keep only the most recent turns inside the total budget. */
+function capHistory(raw) {
+  if (!Array.isArray(raw)) return [];
+  const clean = [];
+  for (const m of raw) {
+    if (!m || (m.role !== 'user' && m.role !== 'assistant')) continue;
+    if (typeof m.content !== 'string') continue;
+    const c = m.content.trim().slice(0, MAX_HISTORY_MSG_CHARS);
+    if (c) clean.push({ role: m.role, content: c });
+  }
+  const kept = clean.slice(-MAX_HISTORY_MSGS);
+  let total = 0;
+  const out = [];
+  for (let i = kept.length - 1; i >= 0; i--) {
+    total += kept[i].content.length;
+    if (total > MAX_HISTORY_TOTAL_CHARS) break;
+    out.unshift(kept[i]);
+  }
+  return out;
+}
+
+/* Ollama streams NDJSON; hand the client bare answer tokens. Returns the
+   unconsumed tail of the buffer so a JSON line split across network chunks
+   survives. Exposed shape kept simple for the offline test bench. */
+function drainNdjson(buffer, controller, encoder) {
+  const lines = buffer.split('\n');
+  const rest = lines.pop();
+  let done = false;
+  let error = null;
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    try {
+      const obj = JSON.parse(line);
+      if (typeof obj.error === 'string' && obj.error) { error = obj.error; break; }
+      if (obj.message && typeof obj.message.content === 'string' && obj.message.content) {
+        controller.enqueue(encoder.encode(obj.message.content));
+      }
+      if (obj.done) done = true;
+    } catch (e) { /* partial or malformed line: skip */ }
+  }
+  return { rest, done, error };
+}
+
+const SYSTEM_INSTRUCTIONS = `You are Ask SCL, the question-answering assistant on the public website of Safety Critical Labs (SCL), an independent certification authority for AI in safety-critical systems. You are a large language model, an open-weight model that SCL self-hosts on its own hardware. No third-party AI service is involved and questions are not sent to any cloud AI provider. SCL does not disclose which specific model runs the assistant, and the model may change over time; if asked which model you are, say exactly that. If a visitor asks what you are or how you work, answer plainly from this paragraph. You are an informational assistant only and play no part in certification decisions. The conversation may include earlier turns; answer follow-up questions using ONLY the reference entries below, and if a follow-up is ambiguous, ask what the visitor means rather than guessing. SCL publishes the AI Requirements Framework: ten core requirement areas (AI-1 through AI-10) plus three conditional architecture and paradigm areas (AI-11 multi-model, AI-12 neural networks, AI-13 continuous learning), anchored in standards like DO-178C, ISO 26262, and NPR 7150.2D.
 
 Answer using ONLY the reference entries provided below. The entries are SCL's FAQ, sometimes followed by verbatim excerpts from the AI Requirements Framework v3.6 standard. Rules:
 - Keep answers to 2 to 6 short sentences, plain text, no markdown formatting, no em dashes.
@@ -205,16 +288,19 @@ export default {
       return reply(500, { error: 'Worker not configured' }, origin);
     }
 
-    // Bound the body before buffering it; a legitimate question is under 4KB.
+    // Bound the body before buffering it; question + capped history fit well
+    // inside MAX_BODY_BYTES.
     const bodyLen = parseInt(request.headers.get('Content-Length') || '0', 10);
-    if (!bodyLen || bodyLen > 4096) {
+    if (!bodyLen || bodyLen > MAX_BODY_BYTES) {
       return reply(413, { error: 'Missing or oversized request body' }, origin);
     }
 
-    let question;
+    let question, history, wantStream;
     try {
       const body = await request.json();
       question = typeof body.question === 'string' ? body.question.trim() : '';
+      history = capHistory(body.history);
+      wantStream = body.stream === true;
     } catch (e) {
       return reply(400, { error: 'Invalid JSON body' }, origin);
     }
@@ -225,6 +311,24 @@ export default {
       return reply(400, { error: 'Question too long (max ' + MAX_QUESTION_CHARS + ' characters)' }, origin);
     }
 
+    // Politeness gates: per-IP rate, then a global in-flight cap. 'busy' and
+    // 'rate' are contract values the page turns into friendly copy. The
+    // in-flight slot is CLAIMED here, synchronously with the check — before
+    // the grounding fetches below suspend this request — or N concurrent
+    // arrivals would all read the stale counter and all pass. Every return
+    // path after this point must release().
+    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+    if (rateLimited(ip)) {
+      return reply(429, { error: 'rate' }, origin);
+    }
+    if (inFlight >= MAX_IN_FLIGHT) {
+      return reply(429, { error: 'busy' }, origin);
+    }
+    inFlight++;
+    let settled = false;
+    let timer = null;
+    const release = () => { if (!settled) { settled = true; inFlight--; if (timer) clearTimeout(timer); } };
+
     // FAQ is the grounding corpus; edge-cache it so we do not refetch per request.
     let faqText;
     try {
@@ -232,14 +336,22 @@ export default {
       if (!faqResp.ok) throw new Error('faq ' + faqResp.status);
       faqText = await faqResp.text();
     } catch (e) {
+      release();
       return reply(503, { error: 'Reference material unavailable, try again shortly' }, origin);
     }
 
     // Framework corpus is best-effort: retrieval failure degrades to FAQ-only.
+    // Score on the current question FIRST (its tokens survive the
+    // MAX_QUERY_TOKENS cap) plus the previous user turn, so a short follow-up
+    // like "what about testing?" keeps the conversation's subject.
+    let retrievalQuery = question;
+    for (let i = history.length - 1; i >= 0; i--) {
+      if (history[i].role === 'user') { retrievalQuery = question + ' ' + history[i].content; break; }
+    }
     let excerpts = '';
     try {
       const fwResp = await fetch(FRAMEWORK_URL, { cf: { cacheTtl: 300, cacheEverything: true } });
-      if (fwResp.ok) excerpts = selectExcerpts(question, await fwResp.json());
+      if (fwResp.ok) excerpts = selectExcerpts(retrievalQuery, await fwResp.json());
     } catch (e) {
       excerpts = '';
     }
@@ -257,7 +369,7 @@ export default {
     }
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+    timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
 
     let apiResp;
     try {
@@ -267,21 +379,23 @@ export default {
         signal: controller.signal,
         body: JSON.stringify({
           model: env.OLLAMA_MODEL || DEFAULT_MODEL,
-          stream: false,
+          stream: wantStream,
           keep_alive: '1h',
-          // num_ctx must clear instructions + FAQ + excerpts; Ollama's default
-          // window would silently truncate the grounding. Excerpts go LAST in
-          // the system block so the stable instructions+FAQ prefix stays
-          // reusable in Ollama's KV prefix cache across questions.
+          // num_ctx must clear instructions + FAQ + excerpts + history;
+          // Ollama's default window would silently truncate the grounding.
+          // Excerpts go LAST in the system block so the stable
+          // instructions+FAQ prefix stays reusable in Ollama's KV prefix
+          // cache across questions.
           options: { temperature: 0.2, num_ctx: 8192, num_predict: 300 },
           messages: [
             { role: 'system', content: SYSTEM_INSTRUCTIONS + '\n\n' + faqText + excerpts },
+            ...history,
             { role: 'user', content: question },
           ],
         }),
       });
     } catch (e) {
-      clearTimeout(timer);
+      release();
       if (e && e.name === 'AbortError') {
         return reply(504, { error: 'The assistant took too long, try again' }, origin);
       }
@@ -289,21 +403,79 @@ export default {
     }
 
     if (!apiResp.ok) {
-      clearTimeout(timer);
+      release();
       console.log('upstream error', apiResp.status);
       return reply(502, { error: 'The assistant could not process that question' }, origin);
     }
 
-    // Keep the abort timer armed until the body is fully read; aborting the
-    // controller also cancels a trickling response stream.
+    if (wantStream && apiResp.body) {
+      // Pass Ollama's NDJSON through as bare text tokens. The abort timer
+      // becomes a per-read idle watchdog while streaming (a fixed total cap
+      // would kill healthy cold-start generations mid-answer; a stalled
+      // tunnel still can't hold the connection forever). A stream that ends
+      // without Ollama's done flag, or that carries an error line, is a
+      // FAILURE — closing it cleanly would present a truncated answer as
+      // complete. release() runs exactly once on every path.
+      const encoder = new TextEncoder();
+      const decoder = new TextDecoder();
+      const upstream = apiResp.body.getReader();
+      const stream = new ReadableStream({
+        start(out) {
+          let buffer = '';
+          let sawDone = false;
+          function rearm() {
+            if (settled) return;
+            clearTimeout(timer);
+            timer = setTimeout(() => controller.abort(), STREAM_IDLE_MS);
+          }
+          function pump() {
+            return upstream.read().then(({ done, value }) => {
+              rearm();
+              if (done) {
+                const tail = drainNdjson(buffer + '\n', out, encoder);
+                release();
+                if (tail.done || sawDone) out.close();
+                else out.error(new Error(tail.error || 'stream ended before completion'));
+                return;
+              }
+              buffer += decoder.decode(value, { stream: true });
+              const res = drainNdjson(buffer, out, encoder);
+              buffer = res.rest;
+              if (res.error) {
+                release();
+                upstream.cancel().catch(() => {});
+                out.error(new Error(res.error));
+                return;
+              }
+              if (res.done) {
+                sawDone = true;
+                out.close();
+                upstream.cancel().catch(() => {});
+                release();
+                return;
+              }
+              return pump();
+            }).catch((e) => { release(); try { out.error(e); } catch (e2) {} });
+          }
+          return pump();
+        },
+        cancel() { upstream.cancel().catch(() => {}); release(); },
+      });
+      const h = corsHeaders(origin);
+      h['Content-Type'] = 'text/plain; charset=utf-8';
+      h['Cache-Control'] = 'no-store';
+      return new Response(stream, { status: 200, headers: h });
+    }
+
+    // Non-streaming path (original contract, kept for fallbacks + old pages).
     let data;
     try {
       data = await apiResp.json();
     } catch (e) {
+      release();
       return reply(502, { error: 'The assistant could not process that question' }, origin);
-    } finally {
-      clearTimeout(timer);
     }
+    release();
 
     const answer = (data.message && typeof data.message.content === 'string')
       ? data.message.content.trim()

@@ -249,6 +249,43 @@
   color: #fff;
 }
 
+/* ── Ask SCL conversation thread (streamed, multi-turn) ── */
+.ask-thread { display: flex; flex-direction: column; gap: 14px; }
+.ask-msg-user {
+  align-self: flex-end; max-width: 78%;
+  background: #0C2242; color: #FAF9F5;
+  border-radius: 14px 14px 4px 14px;
+  padding: 10px 16px;
+  font-size: 14.5px; line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.ask-msg-ai { align-self: stretch; }
+.ask-msg-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.ask-msg-note .ask-msg-body { color: rgba(12,34,66,0.78); }   /* --ink-3 is 3.2:1, under AA */
+.ask-caret {
+  display: inline-block; width: 7px; height: 15px;
+  background: #0C2242; margin-left: 3px; vertical-align: text-bottom;
+  animation: ask-blink 0.9s steps(2) infinite;
+}
+@media (prefers-reduced-motion: reduce) { .ask-caret { animation: none; } }
+@keyframes ask-blink { 0% { opacity: 1; } 50% { opacity: 0; } }
+.ask-cite {
+  display: inline-block; font-family: var(--mono); font-size: 12.5px; font-weight: 500;
+  background: rgba(46,109,180,0.10); color: #1E5A9A;
+  border: 1px solid rgba(46,109,180,0.25); border-radius: 5px;
+  padding: 0 6px; margin: 0 1px;
+  text-decoration: none;
+}
+.ask-cite:hover { background: rgba(46,109,180,0.18); }
+.ask-thread-footer { margin: 10px 0 26px; }
+.ask-new {
+  font-family: var(--sans); font-size: 12px; font-weight: 500;
+  letter-spacing: 0.03em; text-transform: uppercase;
+  color: #1E5A9A; background: none; border: none; cursor: pointer; padding: 0;
+  text-decoration: underline; text-underline-offset: 4px;
+}
+.ask-new:hover { color: #0C2242; }
+
 /* AI answer card (only used when ASK_ENDPOINT is configured) */
 .ask-answer {
   border-color: var(--blue);
@@ -287,6 +324,7 @@
 @media (max-width: 640px) {
   .search-page { padding: 56px 24px 80px; }
   .search-form { padding: 20px 22px; min-height: 160px; }
+  .ask-msg-user { max-width: 92%; }
   .search-input { font-size: 17px; }
 }
 </style>
@@ -500,6 +538,7 @@
   var askMode = !!ASK_ENDPOINT;
   if (askMode) {
     input.placeholder = 'Ask a question';
+    input.maxLength = 500;   /* the worker rejects longer; enforce before dispatch */
     if (lead) lead.textContent = 'Ask anything about AI certification, the framework, the process, or accreditation. Answers are generated from SCL\'s published documentation.';
   }
 
@@ -626,21 +665,16 @@
       + related.map(faqItemHtml).join('');
   }
 
-  function renderAskAnswer(answer, q) {
-    resultsLabel.textContent = 'Answer';
-    resultsList.innerHTML =
-      '<article class="faq-item ask-answer">'
-      + '<div class="ask-answer-tag">AI answer</div>'
-      + '<p class="faq-answer">' + escapeHtml(answer) + '</p>'
-      + '<p class="ask-disclosure">Generated on SCL\'s own hardware by a self-hosted open-weight model (Llama 3.1), from SCL\'s published documentation. Verify anything load-bearing against the standard.</p>'
-      + '</article>'
-      + relatedHtml(q);
-    showResults();
-  }
-
   function renderAskFallback(q) {
     if (faqFailed) { renderLibraryError(); return; }
-    if (!faqLoaded) { pendingQuery = q; return; }
+    if (!faqLoaded) {
+      /* park the query and clear the dead thread; a blinking caret with no
+         request behind it would look like a hung answer */
+      pendingQuery = q;
+      resultsList.innerHTML = '<div class="search-loading">Loading the question library&hellip;</div>';
+      showResults();
+      return;
+    }
     var items = topMatches(q, 5);
     var notice = '<div class="search-notice">The answer service is unavailable right now. Showing matches from the question library instead.</div>';
     renderResults(items, q);
@@ -648,29 +682,173 @@
     showResults();
   }
 
+  /* ── Ask SCL conversation — streamed tokens, multi-turn. History lives in
+     this array only (nothing server-side); the worker caps what it accepts.
+     A failed turn is popped so a retry does not send the failure twice. ── */
+  var convo = [];
+  var thread = null;
+  var threadFooter = null;
+  /* Turn generation: bumped by "New conversation" so an abandoned in-flight
+     stream can never write its answer into the fresh conversation. Every
+     completion handler no-ops when its captured generation is stale. */
+  var askGen = 0;
+
+  var ASK_DISCLOSURE = 'Generated on SCL\'s own hardware by a self-hosted open-weight language model, from SCL\'s published documentation. Verify anything load-bearing against the standard.';
+
+  function ensureThread() {
+    if (thread && resultsList.contains(thread)) return;
+    resultsList.innerHTML = '';
+    thread = document.createElement('div');
+    thread.className = 'ask-thread';
+    thread.setAttribute('role', 'log');
+    thread.setAttribute('aria-label', 'Ask SCL conversation');
+    resultsList.appendChild(thread);
+    threadFooter = null;
+  }
+
+  /* Requirement mentions become framework deep-link chips. Escape first;
+     sub-requirements land on their area anchor (ai-4.1 -> #ai-4). */
+  function citeChips(text) {
+    return escapeHtml(text).replace(/\bAI-(\d{1,2})(\.\d{1,2})?\b/g, function (m, area) {
+      return '<a class="ask-cite" href="/framework#ai-' + area + '">' + m + '</a>';
+    });
+  }
+
+  function addUserMsg(q) {
+    var el = document.createElement('div');
+    el.className = 'ask-msg-user';
+    el.textContent = q;
+    thread.appendChild(el);
+  }
+
+  function addAiMsg() {
+    var art = document.createElement('article');
+    art.className = 'faq-item ask-answer ask-msg-ai';
+    art.innerHTML = '<div class="ask-answer-tag">AI answer</div>';
+    var body = document.createElement('p');
+    body.className = 'faq-answer ask-msg-body';
+    var textNode = document.createTextNode('');
+    var caret = document.createElement('span');
+    caret.className = 'ask-caret';
+    body.appendChild(textNode);
+    body.appendChild(caret);
+    art.appendChild(body);
+    thread.appendChild(art);
+    art.scrollIntoView({ block: 'nearest' });
+    return { art: art, body: body, textNode: textNode, caret: caret };
+  }
+
+  /* Follow the stream only while the reader is already near the bottom;
+     scrolling up to reread must not be fought by the autoscroll. */
+  function followIfNearBottom(el) {
+    var r = el.getBoundingClientRect();
+    if (r.bottom < window.innerHeight + 220) el.scrollIntoView({ block: 'nearest' });
+  }
+
+  function aiNote(ai, text) {
+    ai.art.classList.add('ask-msg-note');
+    ai.body.textContent = text;
+    resultsLabel.textContent = 'Ask SCL';
+  }
+
+  function ensureThreadFooter(q) {
+    if (threadFooter) return;
+    threadFooter = document.createElement('div');
+    threadFooter.innerHTML =
+      '<p class="ask-disclosure">' + ASK_DISCLOSURE + '</p>'
+      + '<div class="ask-thread-footer"><button type="button" class="ask-new" id="ask-new">New conversation</button></div>'
+      + relatedHtml(q);
+    resultsList.appendChild(threadFooter);
+    document.getElementById('ask-new').addEventListener('click', function () {
+      askGen++;   /* orphan any in-flight stream: its handlers check this */
+      askBusy = false;
+      convo = []; thread = null; threadFooter = null;
+      input.value = '';
+      input.placeholder = 'Ask a question';
+      hideResults();
+      input.focus();
+    });
+  }
+
+  function finishAnswer(ai, text, q, firstTurn) {
+    ai.body.innerHTML = citeChips(text);
+    ai.textNode = null; ai.caret = null;   /* replaced by the linkified render */
+    convo.push({ role: 'assistant', content: text });
+    resultsLabel.textContent = 'Conversation';
+    input.placeholder = 'Ask a follow-up';
+    ensureThreadFooter(q);
+    ai.art.scrollIntoView({ block: 'nearest' });
+  }
+
   function runAsk(query) {
     var q = (query || '').trim();
     if (!q) { hideResults(); return; }
     if (askBusy) return;
     askBusy = true;
+    pendingQuery = null;   /* a parked library query must never later clobber this thread */
+    var gen = askGen;
+    var firstTurn = convo.length === 0;
+    ensureThread();
+    addUserMsg(q);
+    var ai = addAiMsg();
     resultsLabel.textContent = 'Ask SCL';
-    resultsList.innerHTML = '<div class="search-loading">Generating an answer&hellip;</div>';
     showResults();
+    input.value = '';
+    var sentHistory = convo.slice(-8);
+    convo.push({ role: 'user', content: q });
+
+    function fail(kind, msg) {
+      if (gen !== askGen) return;   /* conversation was reset while in flight */
+      askBusy = false;
+      convo.pop();
+      if (kind === 'busy') { input.value = q; aiNote(ai, 'Ask SCL is answering another visitor right now. Give it a few seconds and ask again.'); return; }
+      if (kind === 'rate') { input.value = q; aiNote(ai, 'That is a lot of questions in quick succession. Give it a minute and ask again.'); return; }
+      if (kind === 'invalid') { input.value = q; aiNote(ai, (msg || 'That question could not be accepted.') + ' Adjust it and try again.'); return; }
+      if (firstTurn) { convo = []; thread = null; threadFooter = null; renderAskFallback(q); return; }
+      aiNote(ai, 'The assistant is unavailable right now. Your conversation is still here; try again in a moment.');
+    }
+
     fetch(ASK_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: q })
+      body: JSON.stringify({ question: q, history: sentHistory, stream: true })
     })
-      .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
-      .then(function (res) {
-        askBusy = false;
-        if (res.ok && res.data && res.data.answer) renderAskAnswer(res.data.answer, q);
-        else renderAskFallback(q);
+      .then(function (r) {
+        var ct = r.headers.get('Content-Type') || '';
+        if (r.ok && ct.indexOf('text/plain') === 0 && r.body && typeof r.body.getReader === 'function') {
+          var reader = r.body.getReader();
+          var dec = new TextDecoder();
+          var acc = '';
+          function pump() {
+            return reader.read().then(function (res) {
+              if (gen !== askGen) { reader.cancel().catch(function () {}); return; }
+              if (res.done) {
+                if (!acc.trim()) { fail('error'); return; }
+                askBusy = false;
+                finishAnswer(ai, acc.trim(), q, firstTurn);
+                return;
+              }
+              var chunk = dec.decode(res.value, { stream: true });
+              acc += chunk;
+              ai.textNode.appendData(chunk);   /* delta append: role=log announces additions, not rereads */
+              followIfNearBottom(ai.art);
+              return pump();
+            });
+          }
+          return pump();
+        }
+        return r.json().then(function (data) {
+          if (r.ok && data && data.answer) {
+            if (gen !== askGen) return;
+            askBusy = false;
+            finishAnswer(ai, data.answer, q, firstTurn);
+            return;
+          }
+          if (r.status === 400 || r.status === 413) { fail('invalid', data && data.error); return; }
+          fail(data && data.error === 'busy' ? 'busy' : (data && data.error === 'rate' ? 'rate' : 'error'));
+        });
       })
-      .catch(function () {
-        askBusy = false;
-        renderAskFallback(q);
-      });
+      .catch(function () { fail('error'); });
   }
 
   function run(query) {
@@ -711,6 +889,7 @@
   startersWrap.addEventListener('click', function (e) {
     var btn = e.target.closest('.search-starter');
     if (!btn) return;
+    if (askMode && askBusy) return;   /* mid-stream: don't clobber the draft or drop the click silently into a busy guard */
     input.value = btn.textContent;
     run(input.value);
     input.focus();
