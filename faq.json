@@ -5,151 +5,418 @@
     {
       "q": "What is SCL?",
       "a": "Safety Critical Labs is an independent certification authority for artificial intelligence in safety-critical systems. It holds AI and machine learning to the same rigor as traditional safety-critical software, anchored in human-spaceflight-grade standards. The product is the certification mark, not consulting. The closest analogies are bodies like UL, DNV, and ISO registrars.",
-      "keywords": ["scl", "safety", "critical", "labs", "certification", "authority", "about", "who", "company", "what"],
+      "keywords": [
+        "scl",
+        "safety",
+        "critical",
+        "labs",
+        "certification",
+        "authority",
+        "about",
+        "who",
+        "company",
+        "what"
+      ],
       "link": "/position"
     },
     {
       "q": "What is the SCL framework?",
       "a": "The AI Requirements Framework is SCL's core standard for assuring AI in safety-critical systems. It defines ten core requirement areas, AI-1 through AI-10, that apply to every AI system, plus three conditional areas: AI-11 for multi-model systems, AI-12 for neural networks, and AI-13 for continuous learning. It is domain-agnostic and supplements established standards like DO-178C, ISO 26262, and NPR 7150.2D with AI-specific requirements and co-located verification. Its founding principle is that requirements are defined by the failures they prevent, not the capabilities they enable.",
-      "keywords": ["framework", "requirements", "standard", "areas", "verification", "principle", "supplement", "domain"],
+      "keywords": [
+        "framework",
+        "requirements",
+        "standard",
+        "areas",
+        "verification",
+        "principle",
+        "supplement",
+        "domain"
+      ],
       "link": "/framework"
     },
     {
       "q": "How do I get certified?",
       "a": "Certification starts with a conversation about your system and its safety context. SCL assesses the AI against the applicable requirement areas of the framework and reviews the verification evidence you assemble for each one. Systems that meet the requirements receive the SCL certification mark and a verifiable certificate. Reach out through the contact page to scope an engagement.",
-      "keywords": ["certified", "certification", "get", "apply", "start", "engagement", "begin", "how"],
+      "keywords": [
+        "certified",
+        "certification",
+        "get",
+        "apply",
+        "start",
+        "engagement",
+        "begin",
+        "how"
+      ],
       "link": "/process"
     },
     {
       "q": "What does the certification process look like?",
       "a": "The process moves from scoping, to evidence review against the framework, to a certification decision. SCL determines which requirement areas apply to your system, then evaluates the verification evidence for each applicable area against a grading rubric. The result is a pass or fail decision with a defined applicability statement. The process page walks through each stage.",
-      "keywords": ["process", "steps", "assessment", "audit", "review", "rubric", "stages", "decision", "evaluate"],
+      "keywords": [
+        "process",
+        "steps",
+        "assessment",
+        "audit",
+        "review",
+        "rubric",
+        "stages",
+        "decision",
+        "evaluate"
+      ],
       "link": "/process"
     },
     {
       "q": "How long does certification take?",
       "a": "Timeline depends on the scope of the system and how ready your verification evidence is when the engagement begins. A system with mature, well-documented evidence moves faster than one still assembling it. SCL scopes an estimated timeline with you at the start of an engagement. Contact SCL to discuss your specific case.",
-      "keywords": ["long", "time", "timeline", "take", "duration", "quick", "turnaround", "fast", "weeks"],
+      "keywords": [
+        "long",
+        "time",
+        "timeline",
+        "take",
+        "duration",
+        "quick",
+        "turnaround",
+        "fast",
+        "weeks"
+      ],
       "link": "/contact"
     },
     {
       "q": "What does certification cost?",
       "a": "Cost is scoped per engagement, because it depends on the size and complexity of the AI system and the assessment effort involved. SCL does not publish a fixed price list at this stage. Reach out through the contact page and SCL will provide a scoped estimate for your system.",
-      "keywords": ["cost", "price", "pricing", "fee", "fees", "expensive", "much", "budget", "quote", "afford"],
+      "keywords": [
+        "cost",
+        "price",
+        "pricing",
+        "fee",
+        "fees",
+        "expensive",
+        "much",
+        "budget",
+        "quote",
+        "afford"
+      ],
       "link": "/contact"
     },
     {
       "q": "Is SCL accredited?",
       "a": "SCL is pre-accreditation. Intake with ANAB is on file and a fee estimate has been received, but formal engagement is deferred until certification volume supports it. The long-term path is accreditation under ISO/IEC 17065 through a recognized body such as ANAB or A2LA. The accreditation page tracks current status.",
-      "keywords": ["accredited", "accreditation", "anab", "a2la", "iso", "17065", "recognized", "status", "official"],
+      "keywords": [
+        "accredited",
+        "accreditation",
+        "anab",
+        "a2la",
+        "iso",
+        "17065",
+        "recognized",
+        "status",
+        "official"
+      ],
       "link": "/accreditation"
     },
     {
       "q": "What standards does the framework build on?",
       "a": "The framework is domain-agnostic and layers on top of established safety-critical software standards rather than replacing them. It supplements DO-178C for airborne software, ISO 26262 for automotive, and NASA's NPR 7150.2D for spaceflight software, adding AI-specific requirements and verification. This lets teams keep their existing standard and add the AI assurance layer on top.",
-      "keywords": ["standards", "do-178c", "iso", "26262", "npr", "7150", "nasa", "aviation", "automotive", "spaceflight", "build"],
+      "keywords": [
+        "standards",
+        "do-178c",
+        "iso",
+        "26262",
+        "npr",
+        "7150",
+        "nasa",
+        "aviation",
+        "automotive",
+        "spaceflight",
+        "build"
+      ],
       "link": "/framework"
     },
     {
       "q": "What kinds of AI does the framework cover?",
       "a": "The core areas AI-1 through AI-10 apply to any AI system. Three conditional areas cover specific paradigms: AI-11 for systems that combine multiple models, AI-12 for neural networks, and AI-13 for systems that keep learning after deployment. Because the requirements are defined by failure modes rather than by a particular technology, the framework spans classical machine learning through modern neural and multi-model systems.",
-      "keywords": ["cover", "types", "kind", "machine", "learning", "neural", "networks", "multi-model", "continuous", "paradigm", "models", "llm"],
+      "keywords": [
+        "cover",
+        "types",
+        "kind",
+        "machine",
+        "learning",
+        "neural",
+        "networks",
+        "multi-model",
+        "continuous",
+        "paradigm",
+        "models",
+        "llm"
+      ],
       "link": "/framework"
     },
     {
       "q": "What are AI-11, AI-12, and AI-13?",
       "a": "They are the three conditional areas that apply only when a system uses a given paradigm. AI-11 covers systems that combine multiple models, AI-12 covers neural networks, and AI-13 covers systems that keep learning after deployment. A system is assessed against these only where they apply, on top of the always-applicable core areas AI-1 through AI-10.",
-      "keywords": ["ai-11", "ai-12", "ai-13", "conditional", "architecture", "paradigm", "multi-model", "neural", "continuous", "learning"],
+      "keywords": [
+        "ai-11",
+        "ai-12",
+        "ai-13",
+        "conditional",
+        "architecture",
+        "paradigm",
+        "multi-model",
+        "neural",
+        "continuous",
+        "learning"
+      ],
       "link": "/framework"
     },
     {
       "q": "Why is the framework defined by failures instead of capabilities?",
       "a": "Capabilities change constantly, but the ways a safety-critical system can fail are more stable and more testable. By defining each requirement around a specific failure it prevents, the framework stays relevant as models evolve and produces verification that maps directly to safety outcomes. This mirrors long-standing safety engineering practice like FMEA and fault tree analysis.",
-      "keywords": ["failure", "failures", "capabilities", "principle", "why", "defined", "fmea", "fault", "safety", "prevent"],
+      "keywords": [
+        "failure",
+        "failures",
+        "capabilities",
+        "principle",
+        "why",
+        "defined",
+        "fmea",
+        "fault",
+        "safety",
+        "prevent"
+      ],
       "link": "/framework"
     },
     {
       "q": "Does the framework replace my existing standard?",
       "a": "No. The framework supplements the safety-critical software standard you already follow, such as DO-178C, ISO 26262, or NPR 7150.2D. It adds the AI-specific requirements those standards do not yet cover, so you keep your existing process and layer AI assurance on top.",
-      "keywords": ["replace", "existing", "standard", "supplement", "alongside", "keep", "already", "compatible", "addition"],
+      "keywords": [
+        "replace",
+        "existing",
+        "standard",
+        "supplement",
+        "alongside",
+        "keep",
+        "already",
+        "compatible",
+        "addition"
+      ],
       "link": "/framework"
     },
     {
       "q": "What is co-located verification?",
       "a": "Co-located verification means each requirement in the framework ships with the verification method that proves it, in the same place. Instead of a separate test plan, the way you demonstrate compliance sits next to the requirement itself. This keeps the evidence traceable and makes assessment consistent across systems.",
-      "keywords": ["co-located", "verification", "evidence", "testing", "traceability", "method", "proof", "compliance", "test"],
+      "keywords": [
+        "co-located",
+        "verification",
+        "evidence",
+        "testing",
+        "traceability",
+        "method",
+        "proof",
+        "compliance",
+        "test"
+      ],
       "link": "/framework"
     },
     {
       "q": "Where is the framework published?",
-      "a": "The AI Requirements Framework is published openly on Zenodo, with a concept DOI that always resolves to the latest version at 10.5281/zenodo.19024420. A companion white paper is posted on SSRN as a citable preprint. The documents page links the current framework and the supporting publications.",
-      "keywords": ["published", "zenodo", "doi", "ssrn", "white", "paper", "download", "read", "open", "publication", "cite"],
-      "link": "/documents"
+      "a": "The AI Requirements Framework is published openly on Zenodo, with a concept DOI that always resolves to the latest version at 10.5281/zenodo.19024420. A companion white paper is posted on SSRN as a citable preprint. The framework page links the current release and its DOI.",
+      "keywords": [
+        "published",
+        "zenodo",
+        "doi",
+        "ssrn",
+        "white",
+        "paper",
+        "download",
+        "read",
+        "open",
+        "publication",
+        "cite"
+      ],
+      "link": "/framework"
     },
     {
       "q": "Can I read the framework?",
       "a": "Yes. The framework is open and freely available. You can read the current version through the documents page, which links the Zenodo record and the white paper. The Standard itself is open on purpose; the proprietary part is SCL's assessment and audit methodology.",
-      "keywords": ["read", "copy", "access", "get", "download", "documents", "available", "open", "free", "obtain"],
+      "keywords": [
+        "read",
+        "copy",
+        "access",
+        "get",
+        "download",
+        "documents",
+        "available",
+        "open",
+        "free",
+        "obtain"
+      ],
       "link": "/documents"
     },
     {
       "q": "What version of the framework is current?",
-      "a": "The current published version is v3.6. The concept DOI at 10.5281/zenodo.19024420 always resolves to the latest version, so citing it keeps a reference current across updates. The documents page links the exact current release.",
-      "keywords": ["version", "current", "latest", "release", "update", "which", "edition", "v3", "newest"],
-      "link": "/documents"
+      "a": "The current published version is v3.6. The concept DOI at 10.5281/zenodo.19024420 always resolves to the latest version, so citing it keeps a reference current across updates. The framework page links the exact current release.",
+      "keywords": [
+        "version",
+        "current",
+        "latest",
+        "release",
+        "update",
+        "which",
+        "edition",
+        "v3",
+        "newest"
+      ],
+      "link": "/framework"
     },
     {
       "q": "How is SCL different from a consultancy?",
       "a": "A consultancy helps you build a system. SCL certifies whether a finished system meets an independent standard, and does not consult on the systems it assesses, so the mark stays independent. The product is the certification mark itself. The model is closer to UL or DNV than to an advisory firm.",
-      "keywords": ["different", "consultancy", "consulting", "advisory", "independent", "versus", "compare", "conflict", "difference"],
+      "keywords": [
+        "different",
+        "consultancy",
+        "consulting",
+        "advisory",
+        "independent",
+        "versus",
+        "compare",
+        "conflict",
+        "difference"
+      ],
       "link": "/position"
     },
     {
       "q": "What is the SCL mark?",
       "a": "The SCL mark is the certification a system earns by meeting the framework's applicable requirements. It comes with a verifiable certificate that anyone can check on the verify page. SCL Certified is filed as a trademark, so the mark signals a specific, defensible standard rather than a generic claim.",
-      "keywords": ["mark", "seal", "badge", "certified", "trademark", "logo", "verify", "certificate", "stamp"],
+      "keywords": [
+        "mark",
+        "seal",
+        "badge",
+        "certified",
+        "trademark",
+        "logo",
+        "verify",
+        "certificate",
+        "stamp"
+      ],
       "link": "/verify"
     },
     {
       "q": "How do I verify a certificate?",
       "a": "Every certificate SCL issues has an entry in the public register. Use the verify page to look up a certificate and confirm its status, the system it covers, and the framework version it was assessed against. The register is the authoritative source of truth for any SCL certification.",
-      "keywords": ["verify", "verification", "certificate", "check", "register", "authentic", "lookup", "valid", "confirm", "id"],
+      "keywords": [
+        "verify",
+        "verification",
+        "certificate",
+        "check",
+        "register",
+        "authentic",
+        "lookup",
+        "valid",
+        "confirm",
+        "id"
+      ],
       "link": "/verify"
     },
     {
       "q": "Has SCL certified anyone yet?",
       "a": "SCL is in early operation and has not issued a production certification yet. The register currently holds a specimen record that demonstrates what an issued certificate looks like. The verify page shows that specimen so you can see the format before real certifications are listed.",
-      "keywords": ["certified", "anyone", "clients", "yet", "issued", "customers", "register", "specimen", "who", "examples"],
+      "keywords": [
+        "certified",
+        "anyone",
+        "clients",
+        "yet",
+        "issued",
+        "customers",
+        "register",
+        "specimen",
+        "who",
+        "examples"
+      ],
       "link": "/verify"
     },
     {
       "q": "What industries or markets does SCL serve?",
       "a": "SCL focuses on domains where an AI failure can hurt people or cause serious loss, such as aerospace, spaceflight, automotive, medical, and other safety-critical fields. Because the framework layers onto the safety standard already used in each domain, it adapts across industries. The markets page describes the sectors in scope.",
-      "keywords": ["industries", "markets", "sectors", "aerospace", "automotive", "medical", "aviation", "serve", "domains", "who"],
+      "keywords": [
+        "industries",
+        "markets",
+        "sectors",
+        "aerospace",
+        "automotive",
+        "medical",
+        "aviation",
+        "serve",
+        "domains",
+        "who"
+      ],
       "link": "/markets"
     },
     {
       "q": "Who is behind SCL?",
       "a": "SCL is grounded in real safety-critical software experience, including work integrating AI into NASA's Software Engineering Handbook. That background shapes the framework's spaceflight-grade posture and its emphasis on verifiable evidence. The expertise page covers the relevant experience.",
-      "keywords": ["who", "behind", "founder", "team", "expertise", "experience", "nasa", "background", "people", "leadership"],
+      "keywords": [
+        "who",
+        "behind",
+        "founder",
+        "team",
+        "expertise",
+        "experience",
+        "nasa",
+        "background",
+        "people",
+        "leadership"
+      ],
       "link": "/expertise"
     },
     {
       "q": "How can I contact SCL?",
       "a": "The contact page is the way to reach SCL to scope a certification, ask a question the library does not cover, or discuss your system. SCL is in its first phase of operational conversations and welcomes early inquiries.",
-      "keywords": ["contact", "talk", "reach", "email", "someone", "question", "inquiry", "touch", "speak", "message"],
+      "keywords": [
+        "contact",
+        "talk",
+        "reach",
+        "email",
+        "someone",
+        "question",
+        "inquiry",
+        "touch",
+        "speak",
+        "message"
+      ],
       "link": "/contact"
     },
     {
       "q": "How do I stay updated on SCL?",
       "a": "The news page tracks developments in AI assurance and regulation, and the updates page logs changes to SCL and the framework. You can subscribe to receive briefings. Start with the subscribe page to follow along.",
-      "keywords": ["updated", "news", "subscribe", "briefings", "follow", "newsletter", "stay", "latest", "notify"],
+      "keywords": [
+        "updated",
+        "news",
+        "subscribe",
+        "briefings",
+        "follow",
+        "newsletter",
+        "stay",
+        "latest",
+        "notify"
+      ],
       "link": "/subscribe"
     },
     {
       "q": "What powers Ask SCL?",
       "a": "Ask SCL runs on SCL's own hardware. It is an open-weight large language model, Llama 3.1, that SCL self-hosts, with answers grounded in the published FAQ and verbatim text from the AI Requirements Framework. Questions are not sent to any third-party AI service. It is an informational assistant only and plays no part in certification decisions.",
-      "keywords": ["llm", "model", "llama", "powers", "chatbot", "assistant", "hosted", "local", "hardware", "private", "language"],
+      "keywords": [
+        "llm",
+        "model",
+        "llama",
+        "powers",
+        "chatbot",
+        "assistant",
+        "hosted",
+        "local",
+        "hardware",
+        "private",
+        "language"
+      ],
       "link": "/search"
     }
   ]

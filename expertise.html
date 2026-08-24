@@ -272,7 +272,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 
 <script>
-/* ─── GSAP SCROLL ANIMATIONS ─────────────────────────────── */
+/* ─── GSAP SCROLL ANIMATIONS (guarded: cdnjs may be blocked) ── */
+if (!window.gsap || !window.ScrollTrigger) {
+  /* GSAP unavailable: reveal everything immediately so content is never hidden. */
+  document.querySelectorAll('.fade-up, .scale-in, .slide-left, .slide-right, .stagger-in > *')
+    .forEach(function (el) { el.style.opacity = '1'; el.style.transform = 'none'; });
+} else {
 gsap.registerPlugin(ScrollTrigger);
 
 /* Fade-up elements */
@@ -345,6 +350,7 @@ gsap.utils.toArray('.slide-right').forEach(function(el) {
     }
   );
 });
+} /* end GSAP guard */
 
 /* Hero cursor glow */
 (function() {
