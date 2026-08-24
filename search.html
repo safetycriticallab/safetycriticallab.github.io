@@ -493,7 +493,8 @@
      POST JSON {question} returns {answer} or {error}. Leave empty to run the
      page as a plain question library search. Do not commit this with the URL
      set until the worker is deployed, or ask mode will always fall back. */
-  var ASK_ENDPOINT = 'https://scl-ask.kevwill94.workers.dev';
+  var ASK_ENDPOINT = 'https://ask.safetycriticallabs.com';   /* custom domain: clean reputation
+     (corporate filters commonly block *.workers.dev) and the hostname the zone WAF rate rule covers */
 
   var STOPWORDS = {
     the:1, a:1, an:1, is:1, are:1, was:1, were:1, be:1, been:1, being:1,
