@@ -1354,6 +1354,12 @@
   .sc-bubble.sc-show{ opacity:1; transform:none; }
   .sc-q{ align-self:flex-end; background:#2E6DB4; color:#FAF9F5 !important; border-bottom-right-radius:5px; }
   .sc-a{ align-self:flex-start; background:rgba(250,249,245,0.12); color:#E6ECF5 !important; border-bottom-left-radius:5px; }
+  /* demo-loop extras: streaming caret + requirement-citation chip (mirrors the
+     real /search chat). Colors carry !important past the body-wide recolor. */
+  .sc-a .sc-demo-cite{ display:inline-block; font-family:var(--mono); font-size:11px; background:rgba(250,249,245,0.12); border:1px solid rgba(250,249,245,0.34); border-radius:4px; padding:0 5px; margin:0 1px; color:#CFE0F5 !important; }
+  .sc-demo-caret{ display:inline-block; width:6px; height:12px; background:#CFE0F5; margin-left:3px; vertical-align:text-bottom; animation:sc-demo-blink .8s steps(2) infinite; }
+  @keyframes sc-demo-blink{ 0%{opacity:1} 50%{opacity:0} }
+  @media (prefers-reduced-motion: reduce){ .sc-demo-caret{ animation:none; } }
   .sc-ask-search{ display:flex; align-items:center; gap:10px; width:100%; padding:11px 14px; border-radius:12px; background:rgba(250,249,245,0.08); border:1px solid rgba(250,249,245,0.18); }
   .sc-ask-search svg{ color:#9DB4D6; flex-shrink:0; }
   .sc-ask-search input{ flex:1; background:none; border:none; outline:none; color:#FAF9F5 !important; font-family:var(--sans); font-size:14px; }
@@ -1372,9 +1378,8 @@
 
   /* Common-questions tile → mirrors the /search "Ask SCL" page: starter question
      chips that deep-link into a search, over the real search bar. */
-  .sc-chips{ display:flex; flex-wrap:wrap; gap:9px; width:100%; justify-content:center; }
-  .sc-chip{ font-family:var(--sans); font-size:12.5px; color:#D6DEEC !important; background:rgba(250,249,245,0.08); border:1px solid rgba(250,249,245,0.16); border-radius:999px; padding:8px 14px; text-decoration:none; white-space:nowrap; transition:background .2s ease, color .2s ease, border-color .2s ease; }
-  .sc-chip:hover{ background:rgba(250,249,245,0.18); border-color:rgba(250,249,245,0.32); color:#FAF9F5 !important; }
+  /* (.sc-chips question pills retired 2026-08-24: the card now demos the live
+     assistant with the .sc-chat loop; the search form remains the real path) */
 
   /* Stay-informed tile → mirrors the /subscribe page: what you'll receive + an
      email signup (the tile links through to /subscribe to complete it). */
@@ -2046,18 +2051,19 @@
 
       <div class="sc-card" id="sc-ask">
         <div class="sc-stage sc-ask-stage">
-          <div class="sc-chips">
-            <a href="/search?q=What%20is%20SCL%3F" class="sc-chip">What is SCL?</a>
-            <a href="/search?q=How%20do%20I%20get%20certified%3F" class="sc-chip">How do I get certified?</a>
-            <a href="/search?q=What%20does%20it%20cost%3F" class="sc-chip">What does it cost?</a>
-            <a href="/search?q=Is%20SCL%20accredited%3F" class="sc-chip">Is SCL accredited?</a>
-          </div>
+          <!-- Ambient demo of the assistant: a CANNED conversation loop (typed
+               question, streamed answer, citation chip). Deliberately not live:
+               homepage visits must not spend real model inference on decoration,
+               and the demo plays even when the model host is asleep. The real
+               assistant is one submit away in the form below. Decorative:
+               aria-hidden; the form + label carry the accessible meaning. -->
+          <div class="sc-chat" id="sc-ask-demo" aria-hidden="true"></div>
           <form class="sc-ask-search" action="/search" method="get">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input type="text" name="q" placeholder="Search common questions" aria-label="Search common questions" autocomplete="off">
           </form>
         </div>
-        <div class="sc-label">Common questions</div>
+        <div class="sc-label">Ask SCL</div>
         <div class="sc-sub">Ask SCL about certification, the framework, and the process.</div>
       </div>
 
@@ -3444,6 +3450,116 @@
 })();
 </script>
 <div class="sc-modal-backdrop" id="sc-modal-backdrop"></div>
+<script>
+/* Ask SCL card demo — canned conversation loop: a question types itself, the
+   answer streams word-by-word with a citation chip, holds, fades, cycles.
+   Canned on purpose (no homepage inference burn; plays while the model host
+   sleeps). Reduced motion renders one completed exchange, static. The loop
+   only advances while the card is on screen. */
+(function () {
+  var host = document.getElementById('sc-ask-demo');
+  if (!host) return;
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  /* strings stream as words; {cite} renders the chip the real /search chat uses */
+  var PAIRS = [
+    { q: 'Does drift monitoring apply to my model?',
+      a: ['Yes. ', { cite: 'AI-4.1' }, ' requires drift to be monitored against baseline distributions, verified by test.'] },
+    { q: 'Are you an LLM?',
+      a: ['Yes. An open-weight model SCL runs on its own hardware. Questions never leave the building.'] },
+    { q: 'What about hallucinations?',
+      a: [{ cite: 'AI-5' }, ' exists for exactly that failure. Every requirement is defined by what it prevents.'] },
+  ];
+
+  function bubble(cls) {
+    var el = document.createElement('div');
+    el.className = 'sc-bubble ' + cls;
+    host.appendChild(el);
+    requestAnimationFrame(function () { el.classList.add('sc-show'); });
+    return el;
+  }
+  function citeEl(id) {
+    var c = document.createElement('span');
+    c.className = 'sc-demo-cite';
+    c.textContent = id;
+    return c;
+  }
+  function renderStatic(pair) {
+    host.innerHTML = '';
+    var q = bubble('sc-q'); q.textContent = pair.q; q.classList.add('sc-show');
+    var a = bubble('sc-a');
+    pair.a.forEach(function (seg) {
+      if (typeof seg === 'string') a.appendChild(document.createTextNode(seg));
+      else a.appendChild(citeEl(seg.cite));
+    });
+    a.classList.add('sc-show');
+  }
+
+  if (reduce.matches) { renderStatic(PAIRS[0]); return; }
+
+  var visible = false, idx = 0, resume = null;
+
+  /* every step goes through schedule(): off-screen it parks instead of
+     advancing, and the observer resumes the parked step on re-entry */
+  function schedule(fn, ms) {
+    setTimeout(function () {
+      if (!visible) { resume = fn; return; }
+      fn();
+    }, ms);
+  }
+
+  function cycle() {
+    var pair = PAIRS[idx % PAIRS.length];
+    idx++;
+    host.innerHTML = '';
+    var q = bubble('sc-q');
+    var qi = 0;
+    function typeQ() {
+      if (qi < pair.q.length) { q.textContent = pair.q.slice(0, ++qi); schedule(typeQ, 30); return; }
+      schedule(startA, 550);
+    }
+    function startA() {
+      var a = bubble('sc-a');
+      var caret = document.createElement('span');
+      caret.className = 'sc-demo-caret';
+      a.appendChild(caret);
+      var tokens = [];
+      pair.a.forEach(function (seg) {
+        if (typeof seg === 'string') seg.split(/(\s+)/).forEach(function (w) { if (w) tokens.push(w); });
+        else tokens.push(seg);
+      });
+      var ti = 0;
+      function stream() {
+        if (ti < tokens.length) {
+          var t = tokens[ti++];
+          if (typeof t === 'string') a.insertBefore(document.createTextNode(t), caret);
+          else a.insertBefore(citeEl(t.cite), caret);
+          schedule(stream, 60);
+          return;
+        }
+        caret.remove();
+        schedule(fadeOut, 3400);
+      }
+      function fadeOut() {
+        Array.prototype.forEach.call(host.querySelectorAll('.sc-bubble'), function (b) { b.classList.remove('sc-show'); });
+        schedule(cycle, 600);
+      }
+      schedule(stream, 350);
+    }
+    schedule(typeQ, 400);
+  }
+
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(function (es) {
+      visible = es[es.length - 1].isIntersecting;   /* last entry: batched enter+exit must not latch stale state */
+      if (visible && resume) { var r = resume; resume = null; r(); }
+    }, { threshold: 0.2 }).observe(host);
+  } else {
+    visible = true;
+  }
+  cycle();
+})();
+</script>
 <script>
 /* Firework: a 3D particle burst of the 13 requirement areas. The CARD spins a
    fibonacci sphere (teaser). The EXPANDED modal settles the same sparks into a
