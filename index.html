@@ -7,7 +7,9 @@
 <meta name="description" content="Safety Critical Labs is an AI certification authority for safety critical systems. Formal determinations issued against a published, citable standard.">
 <meta property="og:title" content="Safety Critical Labs">
 <meta property="og:description" content="AI certification for safety critical systems. Formal determinations issued against a published, citable standard.">
-<meta property="og:url" content="https://safetycriticallabs.com">
+<link rel="canonical" href="https://safetycriticallabs.com/">
+<meta name="twitter:card" content="summary">
+<meta property="og:url" content="https://safetycriticallabs.com/">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://safetycriticallabs.com/img/og-tile.png">
 <meta name="theme-color" content="#FAF6EC">
@@ -23,7 +25,7 @@
       "name": "Safety Critical Labs",
       "alternateName": "SCL",
       "url": "https://safetycriticallabs.com/",
-      "logo": "https://safetycriticallabs.com/img/SCL_Logo_transparent.png",
+      "logo": "https://safetycriticallabs.com/img/favicon-512x512.png",
       "description": "Safety Critical Labs is an AI certification authority for safety critical systems. Formal determinations issued against a published, citable standard.",
       "email": "kevin.williams@safetycriticallabs.com",
       "sameAs": [
@@ -164,6 +166,13 @@
    especially mirrored on the back face). */
 .cert-stage .cert-watermark {
   transform: translate(-50%, -50%) translate(var(--wm-x, 0px), var(--wm-y, 0px));
+}
+/* The back face is mirrored (rotateY 180), which flips its local x axis: the
+   same +x drift renders as -x on screen, so the back watermark visibly slid
+   against the tilt while the front read as subtle depth. Negating x inside
+   the mirrored face gives both faces the identical screen-space parallax. */
+.cert-stage .cert-back .cert-watermark {
+  transform: translate(-50%, -50%) translate(calc(var(--wm-x, 0px) * -1), var(--wm-y, 0px));
 }
 
 /* ─── CERT BACK (verification "proof" face) ─────────────────────────── */
@@ -1191,6 +1200,12 @@
   #fw-showcase.is-expanded .fw3d-spark { transform:var(--tf-exp); }
   #fw-showcase.is-expanded .fw3d-scene { animation:fw3d-wobble 24s ease-in-out infinite; }
   #fw-showcase.is-expanded .fw3d-scene.is-paused { animation-play-state:paused; }
+  /* Reduced motion: kill orbit + wobble but keep the static pose each
+     animation would otherwise supply (the keyframes carry the transform). */
+  @media (prefers-reduced-motion: reduce) {
+    .fw3d-scene { animation: none; transform: rotateX(-15deg) rotateY(24deg); }
+    #fw-showcase.is-expanded .fw3d-scene { animation: none; transform: translateY(-34px) scale(1.92) rotateX(-12deg) rotateY(0deg); }
+  }
   @keyframes fw3d-wobble {
     0%,100% { transform:translateY(-34px) scale(1.92) rotateX(-15deg) rotateY(-12deg); }
     50%     { transform:translateY(-34px) scale(1.92) rotateX(-8deg)  rotateY(12deg); }
@@ -1220,7 +1235,7 @@
   .fw3d-detail-close:hover { opacity:1; }
   .fw3d-d-id { font-family:var(--mono); font-size:12px; letter-spacing:.08em; color:#2E6DB4 !important; }
   .fw3d-d-title { font-size:23px; font-weight:600; line-height:1.2; margin:4px 0 14px; color:#0C2242 !important; }
-  .fw3d-d-prevents-label { font-family:var(--mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:rgba(12, 34, 66,0.5) !important; }
+  .fw3d-d-prevents-label { font-family:var(--mono); font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:rgba(12, 34, 66,0.72) !important; }   /* 0.5 sat at 3.2:1, below AA for text this small */
   .fw3d-d-prevents { font-size:15px; line-height:1.55; margin:6px 0 14px; color:rgba(12, 34, 66,0.82) !important; }
   .fw3d-d-link { font-family:var(--mono); font-size:12.5px; color:#2E6DB4 !important; text-decoration:none; }
   .fw3d-d-link:hover { text-decoration:underline; }
@@ -2032,12 +2047,12 @@
       <div class="sc-card" id="sc-ask">
         <div class="sc-stage sc-ask-stage">
           <div class="sc-chips">
-            <a href="/search.html?q=What%20is%20SCL%3F" class="sc-chip">What is SCL?</a>
-            <a href="/search.html?q=How%20do%20I%20get%20certified%3F" class="sc-chip">How do I get certified?</a>
-            <a href="/search.html?q=What%20does%20it%20cost%3F" class="sc-chip">What does it cost?</a>
-            <a href="/search.html?q=Is%20SCL%20accredited%3F" class="sc-chip">Is SCL accredited?</a>
+            <a href="/search?q=What%20is%20SCL%3F" class="sc-chip">What is SCL?</a>
+            <a href="/search?q=How%20do%20I%20get%20certified%3F" class="sc-chip">How do I get certified?</a>
+            <a href="/search?q=What%20does%20it%20cost%3F" class="sc-chip">What does it cost?</a>
+            <a href="/search?q=Is%20SCL%20accredited%3F" class="sc-chip">Is SCL accredited?</a>
           </div>
-          <form class="sc-ask-search" action="/search.html" method="get">
+          <form class="sc-ask-search" action="/search" method="get">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input type="text" name="q" placeholder="Search common questions" aria-label="Search common questions" autocomplete="off">
           </form>
@@ -2184,7 +2199,7 @@
             <a href="/documents">Documents</a>
             <a href="/presentation">Presentation</a>
             <a href="/certificate-template">Certificate template</a>
-            <a href="/search.html">FAQ</a>
+            <a href="/search">FAQ</a>
           </div>
         </div>
 
@@ -3351,25 +3366,49 @@
 (function () {
   var body = document.body,
       backdrop = document.getElementById('sc-modal-backdrop'),
-      open = null;
+      open = null, lastTrigger = null;
+  var LABELS = { 'sc-cert-stage': 'Certificate of Conformance', 'fw-showcase': 'Thirteen requirement areas' };
+  /* Dialog semantics + focus contract: role/aria-modal only while expanded
+     (the same element is the in-card teaser the rest of the time), focus
+     moves to the close button on open, Tab is trapped inside, and focus
+     returns to the triggering Expand button on close. */
+  function focusables(el) {
+    return Array.prototype.filter.call(
+      el.querySelectorAll('a[href], button, [tabindex="0"]'),
+      function (n) {
+        if (!n.getClientRects().length) return false;   /* display:none (incl. the retired SVG) */
+        return getComputedStyle(n).visibility !== 'hidden';   /* closed detail panel */
+      });
+  }
   function close() {
     if (!open) return;
     open.classList.remove('is-expanded');
+    open.removeAttribute('role');
+    open.removeAttribute('aria-modal');
+    open.removeAttribute('aria-label');
     body.classList.remove('sc-modal-open');
     open = null;
+    if (lastTrigger && document.contains(lastTrigger)) lastTrigger.focus();
+    lastTrigger = null;
   }
-  function show(id) {
+  function show(id, trigger) {
     var el = document.getElementById(id);
     if (!el) return;
     close();
+    lastTrigger = trigger || null;
     el.classList.add('is-expanded');
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'true');
+    if (LABELS[id]) el.setAttribute('aria-label', LABELS[id]);
     body.classList.add('sc-modal-open');
     open = el;
+    var cb = el.querySelector('.sc-modal-close');
+    if (cb) cb.focus();
   }
   document.querySelectorAll('.sc-expand').forEach(function (b) {
     b.addEventListener('click', function (e) {
       e.stopPropagation();
-      show(b.getAttribute('data-expands'));
+      show(b.getAttribute('data-expands'), b);
     });
   });
   /* Whole-tile click opens the same modal as the Expand button. Guards:
@@ -3385,14 +3424,23 @@
       if (stage.classList.contains('is-expanded')) return;
       if (e.target.closest('.sc-expand, .sc-modal-close, .sc-modal-cta')) return;
       if (cfg[2] && e.target.closest(cfg[2])) return;
-      show(cfg[1]);
+      show(cfg[1], card.querySelector('.sc-expand'));
     });
   });
   document.querySelectorAll('.sc-modal-close').forEach(function (b) {
     b.addEventListener('click', close);
   });
   if (backdrop) backdrop.addEventListener('click', close);
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { close(); return; }
+    if (e.key !== 'Tab' || !open) return;
+    var f = focusables(open);
+    if (!f.length) return;
+    var first = f[0], last = f[f.length - 1];
+    if (!open.contains(document.activeElement)) { e.preventDefault(); first.focus(); return; }
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
 })();
 </script>
 <div class="sc-modal-backdrop" id="sc-modal-backdrop"></div>

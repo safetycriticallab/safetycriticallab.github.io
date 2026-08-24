@@ -723,8 +723,8 @@ h2.section-title em { font-style: italic; color: var(--ink); font-family: var(--
 .inner-hero { background: #FAF9F5; border-bottom: none; }
 .inner-hero h1 { color: #0C2242; }
 .inner-hero-lead { color: #0C2242; }
-.inner-hero-breadcrumb { color: rgba(12,34,66,0.55); }
-.inner-hero-breadcrumb a { color: rgba(12,34,66,0.55); }
+.inner-hero-breadcrumb { color: rgba(12,34,66,0.78); }   /* 0.55 was 3.67:1, under AA */
+.inner-hero-breadcrumb a { color: rgba(12,34,66,0.78); }
 .inner-hero-breadcrumb a:hover { color: #0C2242; }
 .inner-hero-breadcrumb span { color: rgba(12,34,66,0.28); }
 

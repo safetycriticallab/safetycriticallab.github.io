@@ -7,7 +7,9 @@
 <meta name="description" content="A four phase certification process producing a formal determination and a quantified risk score. Every phase has a defined output before the next begins.">
 <meta property="og:title" content="Certification Process | Safety Critical Labs">
 <meta property="og:description" content="Four phases from applicability determination to certificate issuance. A formal determination and quantified risk score issued on completion.">
-<meta property="og:url" content="https://safetycriticallabs.com/process.html">
+<link rel="canonical" href="https://safetycriticallabs.com/process">
+<meta name="twitter:card" content="summary">
+<meta property="og:url" content="https://safetycriticallabs.com/process">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://safetycriticallabs.com/img/og-tile.png">
 <link rel="icon" type="image/x-icon" href="favicon.ico">
@@ -592,7 +594,7 @@ body, body * { color: #0C2242 !important; }
             <a href="/documents">Documents</a>
             <a href="/presentation">Presentation</a>
             <a href="/certificate-template">Certificate template</a>
-            <a href="/search.html">FAQ</a>
+            <a href="/search">FAQ</a>
           </div>
         </div>
 
@@ -633,63 +635,9 @@ body, body * { color: #0C2242 !important; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 
 <script>
-/* ─── UI WIRING (runs regardless of GSAP availability) ───── */
-
-// Mobile menu toggle
-document.querySelector('.gn-hamburger').addEventListener('click', function() {
-  this.classList.toggle('open');
-  document.querySelector('.gn-links').classList.toggle('open');
-  this.setAttribute('aria-expanded', this.classList.contains('open'));
-  document.body.style.overflow = this.classList.contains('open') ? 'hidden' : '';
-});
-
-/* Nav wordmark scroll-collapse: full name at top, "SCL" past 40px (matches index). */
-(function () {
-  var nav = document.querySelector('.global-nav');
-  if (!nav) return;
-  var THRESHOLD = 40, compact = false;
-  function update() {
-    var should = window.scrollY > THRESHOLD;
-    if (should !== compact) { compact = should; nav.classList.toggle('gn-compact', compact); }
-  }
-  window.addEventListener('scroll', update, { passive: true });
-  update();
-})();
-
-/* Dropdown nav toggle — aria-expanded tracks the open state and Escape
-   closes + refocuses the toggle (mirrors nav.js; keep the two in step). */
-function closeDropdowns() {
-  document.querySelectorAll(".gn-dropdown").forEach(function(d) {
-    d.classList.remove("open");
-    var m = d.querySelector(".gn-dropdown-menu");
-    if (m) m.style.display = "none";
-    var t = d.querySelector(".gn-dropdown-toggle");
-    if (t) t.setAttribute("aria-expanded", "false");
-  });
-}
-document.querySelectorAll(".gn-dropdown-toggle").forEach(function(btn) {
-  btn.addEventListener("click", function(e) {
-    e.stopPropagation();
-    var dd = this.closest(".gn-dropdown");
-    var menu = dd.querySelector(".gn-dropdown-menu");
-    var isOpen = dd.classList.contains("open");
-    closeDropdowns();
-    if (!isOpen) {
-      dd.classList.add("open");
-      menu.style.display = "block";
-      this.setAttribute("aria-expanded", "true");
-    }
-  });
-});
-document.addEventListener("click", closeDropdowns);
-document.addEventListener("keydown", function(e) {
-  if (e.key !== "Escape") return;
-  var open = document.querySelector(".gn-dropdown.open");
-  if (!open) return;
-  var t = open.querySelector(".gn-dropdown-toggle");
-  closeDropdowns();
-  if (t) t.focus();
-});
+/* Nav behavior (hamburger, dropdowns, scroll-collapse, phone-menu CTA clone)
+   comes from the shared /nav.js like every other page — the inline copy was
+   retired 2026-08-24. Do NOT re-add inline nav bindings here (double-fire). */
 
 /* ─── Hero cursor glow ───────────────────────── */
 (function() {
@@ -801,5 +749,6 @@ if (window.gsap && window.ScrollTrigger) {
 }
 </script>
 <script src="/footer.js" defer></script>
+<script src="/nav.js" defer></script>
 </body>
 </html>

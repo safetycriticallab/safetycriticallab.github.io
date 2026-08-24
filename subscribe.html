@@ -7,7 +7,9 @@
 <meta name="description" content="Briefings on AI regulation, certification, and how Safety Critical Labs evaluates AI systems. Delivered occasionally.">
 <meta property="og:title" content="Subscribe | Safety Critical Labs">
 <meta property="og:description" content="Briefings on AI regulation, certification, and AI evaluation methodology.">
-<meta property="og:url" content="https://safetycriticallabs.com/subscribe.html">
+<link rel="canonical" href="https://safetycriticallabs.com/subscribe">
+<meta name="twitter:card" content="summary">
+<meta property="og:url" content="https://safetycriticallabs.com/subscribe">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://safetycriticallabs.com/img/og-tile.png">
 <link rel="icon" type="image/x-icon" href="favicon.ico">
@@ -264,7 +266,7 @@
       Updates on how Safety Critical Labs evaluates AI systems. Briefings on the regulatory developments that shape the field. Delivered occasionally, never on a schedule.
     </p>
 
-    <div class="sub-confirmation" id="sub-confirmation">
+    <div class="sub-confirmation" id="sub-confirmation" role="status" tabindex="-1">
       <h2 class="sub-confirmation-title" id="sub-confirmation-title">You're on the list.</h2>
       <p class="sub-confirmation-body" id="sub-confirmation-body">You'll receive the next briefing when it goes out.</p>
     </div>
@@ -355,7 +357,7 @@
             <a href="/documents">Documents</a>
             <a href="/presentation">Presentation</a>
             <a href="/certificate-template">Certificate template</a>
-            <a href="/search.html">FAQ</a>
+            <a href="/search">FAQ</a>
           </div>
         </div>
         <div class="footer-col">
@@ -438,6 +440,7 @@
     clearError();
     form.style.display = 'none';
     confirmation.classList.add('active');
+    confirmation.focus();   /* hiding the form removed the focused submit button */
   }
 
   function cacheLocally(email) {

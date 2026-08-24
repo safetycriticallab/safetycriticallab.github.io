@@ -13,7 +13,9 @@
 <meta name="description" content="Start a conversation with Safety Critical Labs. Reach out to discuss certification for your AI system.">
 <meta property="og:title" content="Contact | Safety Critical Labs">
 <meta property="og:description" content="Begin a certification assessment or readiness evaluation for your AI system. Safety Critical Labs conducts assessments worldwide.">
-<meta property="og:url" content="https://safetycriticallabs.com/contact.html">
+<link rel="canonical" href="https://safetycriticallabs.com/contact">
+<meta name="twitter:card" content="summary">
+<meta property="og:url" content="https://safetycriticallabs.com/contact">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://safetycriticallabs.com/img/og-tile.png">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -197,7 +199,7 @@
 .form-label {
   font-family: var(--sans); font-size: 11px;
   font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--ink-2);   /* --ink-3 is 3.16:1 on cream, under AA for 11px text */
 }
 
 .form-input,
@@ -399,7 +401,7 @@
           </div>
           <button type="submit" class="form-submit">Send message</button>
         </form>
-        <div class="form-success" id="formSuccess">
+        <div class="form-success" id="formSuccess" role="status" tabindex="-1">
           Your message has been received. A member of the SCL team will be in touch shortly.
         </div>
       </div>
@@ -453,7 +455,7 @@
             <a href="/documents">Documents</a>
             <a href="/presentation">Presentation</a>
             <a href="/certificate-template">Certificate template</a>
-            <a href="/search.html">FAQ</a>
+            <a href="/search">FAQ</a>
           </div>
         </div>
         <div class="footer-col">
@@ -525,6 +527,7 @@ if (form) {
       if (response.ok) {
         form.style.display = 'none';
         success.classList.add('visible');
+        success.focus();   /* hiding the form removed the focused submit button */
       } else {
         if (errorEl) errorEl.classList.add('visible');
         if (submitBtn) submitBtn.disabled = false;
