@@ -1397,9 +1397,10 @@
 
   /* Stay-informed tile → mirrors the /subscribe page: what you'll receive + an
      email signup (the tile links through to /subscribe to complete it). */
-  .sc-sub-list{ display:flex; flex-direction:column; gap:11px; width:100%; }
-  .sc-sub-item2{ display:flex; align-items:center; gap:11px; font-size:14px; color:#D6DEEC !important; }
-  .sc-sub-dot{ width:6px; height:6px; border-radius:50%; background:#6E9BD8; flex-shrink:0; }
+  /* (.sc-sub-list bullet rows retired 2026-08-24: the card now runs the
+     scrolling regulatory feed those rows stood in for) */
+  .sc-feed-track.is-paused{ animation-play-state:paused; }
+  @media (prefers-reduced-motion: reduce){ .sc-feed-track{ animation:none; } }
   .sc-sub-form{ display:flex; gap:8px; width:100%; }
   .sc-sub-form input{ flex:1; min-width:0; background:rgba(250,249,245,0.08); border:1px solid rgba(250,249,245,0.18); border-radius:10px; padding:11px 14px; color:#FAF9F5 !important; font-family:var(--sans); font-size:14px; outline:none; }
   .sc-sub-form input::placeholder{ color:rgba(250,249,245,0.5); }
@@ -2086,11 +2087,26 @@
       </div>
 
       <div class="sc-card" id="sc-feed">
-        <div class="sc-stage sc-ask-stage">
-          <div class="sc-sub-list">
-            <div class="sc-sub-item2"><span class="sc-sub-dot"></span>Regulatory developments</div>
-            <div class="sc-sub-item2"><span class="sc-sub-dot"></span>Framework releases</div>
-            <div class="sc-sub-item2"><span class="sc-sub-dot"></span>How we evaluate AI</div>
+        <div class="sc-stage sc-ask-stage sc-feed-stage">
+          <!-- Scrolling regulatory feed: the dormant design this card was cut
+               from, finally wired up. Curated evergreen items, doubled for the
+               seamless -50% loop; decorative (aria-hidden) — the label, sub-line
+               and form carry the accessible meaning. Loop pauses off-screen. -->
+          <div class="sc-feed-mask" aria-hidden="true">
+            <div class="sc-feed-track" id="sc-feed-track">
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-eu">EU</span>AI Act obligations for general-purpose models</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-nist">NIST</span>Generative AI profile for the AI RMF</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-faa">FAA</span>Roadmap for AI safety assurance in aviation</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-fda">FDA</span>Guidance on AI-enabled device software</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-eu">EU</span>Harmonized standards for high-risk AI</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-nist">NIST</span>Trustworthy AI for critical infrastructure</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-eu">EU</span>AI Act obligations for general-purpose models</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-nist">NIST</span>Generative AI profile for the AI RMF</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-faa">FAA</span>Roadmap for AI safety assurance in aviation</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-fda">FDA</span>Guidance on AI-enabled device software</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-eu">EU</span>Harmonized standards for high-risk AI</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-nist">NIST</span>Trustworthy AI for critical infrastructure</div>
+            </div>
           </div>
           <form class="sc-sub-form" action="/subscribe" method="get">
             <input type="email" name="email" placeholder="you@organization.com" aria-label="Email address" autocomplete="off">
@@ -3576,6 +3592,16 @@
     visible = true;
   }
   cycle();
+})();
+
+/* Feed tile: pause the regulatory ticker while off-screen (battery politeness;
+   same IO pattern as the demo loop above). */
+(function () {
+  var track = document.getElementById('sc-feed-track');
+  if (!track || !('IntersectionObserver' in window)) return;
+  new IntersectionObserver(function (es) {
+    track.classList.toggle('is-paused', !es[es.length - 1].isIntersecting);
+  }, { threshold: 0.05 }).observe(track);
 })();
 </script>
 <script>
