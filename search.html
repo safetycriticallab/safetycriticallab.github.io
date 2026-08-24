@@ -815,6 +815,8 @@
     var ai = addAiMsg();
     resultsLabel.textContent = 'Ask SCL';
     showResults();
+    composerDown();   /* adopt chat layout at send time, not answer time — the
+                         conversation must never jump around the input mid-turn */
     input.value = '';
     var sentHistory = convo.slice(-8);
     convo.push({ role: 'user', content: q });
