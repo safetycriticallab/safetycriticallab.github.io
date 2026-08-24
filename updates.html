@@ -27,17 +27,7 @@
 /* ─── UPDATES PAGE ────────────────────────────────────────── */
 
 /* Hero cursor glow */
-.inner-hero { z-index: 0; }
-.fw-hero-glow {
-  position: absolute; inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.4s;
-  background: radial-gradient(520px circle at var(--glow-x, 70%) var(--glow-y, 30%), rgba(46,109,180,0.10), transparent 60%);
-}
-.inner-hero:hover .fw-hero-glow { opacity: 1; }
-.inner-hero-inner { z-index: 2; position: relative; }
+/* Hero cursor glow styles live in styles.css (promoted 2026-08-24) */
 
 /* Bracketed mono eyebrow (unused on this page but kept for parity) */
 .fw-eyebrow-mono {
@@ -315,12 +305,12 @@
   <div class="updates-page-inner">
 
     <div class="updates-filter-row" role="group" aria-label="Filter updates by type">
-      <button class="updates-filter-chip active" data-filter="all">All</button>
-      <button class="updates-filter-chip" data-filter="framework">Framework</button>
-      <button class="updates-filter-chip" data-filter="trademark">Trademark</button>
-      <button class="updates-filter-chip" data-filter="publication">Publication</button>
-      <button class="updates-filter-chip" data-filter="accreditation">Accreditation</button>
-      <button class="updates-filter-chip" data-filter="operations">Operations</button>
+      <button class="updates-filter-chip active" aria-pressed="true" data-filter="all">All</button>
+      <button class="updates-filter-chip" aria-pressed="false" data-filter="framework">Framework</button>
+      <button class="updates-filter-chip" aria-pressed="false" data-filter="trademark">Trademark</button>
+      <button class="updates-filter-chip" aria-pressed="false" data-filter="publication">Publication</button>
+      <button class="updates-filter-chip" aria-pressed="false" data-filter="accreditation">Accreditation</button>
+      <button class="updates-filter-chip" aria-pressed="false" data-filter="operations">Operations</button>
     </div>
 
     <div class="updates-timeline">
@@ -330,7 +320,7 @@
         <div class="update-date">August 2026</div>
         <div class="update-card">
           <span class="update-type">Framework Release</span>
-          <h3 class="update-title">Framework v3.6 released</h3>
+          <h2 class="update-title">Framework v3.6 released</h2>
           <p class="update-body">
             The current published revision, now the standard SCL assesses against, under a new citable DOI. This release makes the applicability determination verifiable. Whether the framework applies now turns on a single anchor criterion, whether a component's correctness can be fully verified against explicitly written specification by established methods, with the list of mechanisms treated as illustrative rather than load bearing. Each determination declares its boundary of analysis, and a normative deletion test for data fitted parameters separates learned components from conventional engineering methods that only resemble them. The thirteen requirement areas (AI-1 through AI-13) and the three tier classification structure carry forward from v3.5.
           </p>
@@ -343,7 +333,7 @@
         <div class="update-date">July 2026</div>
         <div class="update-card">
           <span class="update-type">Framework Release</span>
-          <h3 class="update-title">Framework v3.5 released</h3>
+          <h2 class="update-title">Framework v3.5 released</h2>
           <p class="update-body">
             Point revision published under a new citable DOI. The thirteen requirement areas (AI-1 through AI-13) and the three tier classification structure carry forward unchanged.
           </p>
@@ -356,7 +346,7 @@
         <div class="update-date">July 2026</div>
         <div class="update-card">
           <span class="update-type">Framework Release</span>
-          <h3 class="update-title">Framework v3.4 released</h3>
+          <h2 class="update-title">Framework v3.4 released</h2>
           <p class="update-body">
             Point revision published under a new citable DOI. The thirteen requirement areas (AI-1 through AI-13) and the three tier classification structure carry forward unchanged.
           </p>
@@ -369,7 +359,7 @@
         <div class="update-date">July 2026</div>
         <div class="update-card">
           <span class="update-type">Publication</span>
-          <h3 class="update-title">Open verification demonstration on <em>NASA turbofan data</em></h3>
+          <h2 class="update-title">Open verification demonstration on <em>NASA turbofan data</em></h2>
           <p class="update-body">
             A public, reproducible demonstration applies the framework's verification methods to NASA's C-MAPSS turbofan degradation dataset. A series of experiments exercises data partitioning, drift monitoring, out-of-distribution detection, and calibration, with the full pipeline, measured results, and figures published as an open repository under an MIT license. It accompanies a methodology manuscript now under review at a Nature Portfolio journal.
           </p>
@@ -382,7 +372,7 @@
         <div class="update-date">June 2026</div>
         <div class="update-card">
           <span class="update-type">Framework Release</span>
-          <h3 class="update-title">Framework v3.3 released</h3>
+          <h2 class="update-title">Framework v3.3 released</h2>
           <p class="update-body">
             Point revision published under a new citable DOI. The thirteen requirement areas (AI-1 through AI-13) and the three tier classification structure carry forward unchanged.
           </p>
@@ -395,7 +385,7 @@
         <div class="update-date">June 2026</div>
         <div class="update-card">
           <span class="update-type">Framework Release</span>
-          <h3 class="update-title">Framework v3.1 released &mdash; <em>refinements and clarifications</em></h3>
+          <h2 class="update-title">Framework v3.1 released &mdash; <em>refinements and clarifications</em></h2>
           <p class="update-body">
             Point revision published under a new citable DOI. The thirteen requirement areas (AI-1 through AI-13) and the three tier classification structure carry forward unchanged from v3.0, with refinements to requirement wording, verification guidance, and cross references throughout.
           </p>
@@ -408,7 +398,7 @@
         <div class="update-date">June 2026</div>
         <div class="update-card">
           <span class="update-type">Publication</span>
-          <h3 class="update-title">White paper posted on <em>SSRN</em></h3>
+          <h2 class="update-title">White paper posted on <em>SSRN</em></h2>
           <p class="update-body">
             The AI Requirements Framework white paper is publicly posted on SSRN as a citable preprint. It presents the failure-defined principle, the two-tier requirement structure, and the co-located verification approach in a single reference for practitioners and reviewers.
           </p>
@@ -421,7 +411,7 @@
         <div class="update-date">May 2026</div>
         <div class="update-card">
           <span class="update-type">Operations</span>
-          <h3 class="update-title">Website refresh and source <em>document library</em> launched</h3>
+          <h2 class="update-title">Website refresh and source <em>document library</em> launched</h2>
           <p class="update-body">
             safetycriticallabs.com refreshed across every page in the cream and blue palette. A new <strong>Documents</strong> library publishes the full set of standards, regulations, and reference documents that inform the framework, with direct links to each official publisher.
           </p>
@@ -434,7 +424,7 @@
         <div class="update-date">May 2026</div>
         <div class="update-card">
           <span class="update-type">Framework Release</span>
-          <h3 class="update-title">Framework v3.0 released &mdash; <em>Architecture and Paradigm Requirements</em></h3>
+          <h2 class="update-title">Framework v3.0 released &mdash; <em>Architecture and Paradigm Requirements</em></h2>
           <p class="update-body">
             Major structural revision. New <strong>Section 3</strong> adds three architecture and paradigm requirement sets: AI-11 Multi-Model Systems, AI-12 Neural Networks, and AI-13 Continuous Learning and Adaptation. These apply conditionally based on system design and resolve prior lexicon contradictions by separating normative architecture requirements from informative implementation patterns.
           </p>
@@ -447,7 +437,7 @@
         <div class="update-date">May 2026</div>
         <div class="update-card">
           <span class="update-type">Framework Release</span>
-          <h3 class="update-title">Framework v2.1.3 &mdash; Deployment Format Validation</h3>
+          <h2 class="update-title">Framework v2.1.3 &mdash; Deployment Format Validation</h2>
           <p class="update-body">
             Added AI-4.7 Deployment Format Validation covering model transformations (quantization, pruning, knowledge distillation, framework conversion). Added Section 4.4 Continuous and Periodic Verification and a Cadence column to the Verification Matrix. Editorial pass on Sections 1 through 3 for terminology and lexicon consistency.
           </p>
@@ -459,7 +449,7 @@
         <div class="update-date">May 2026</div>
         <div class="update-card">
           <span class="update-type">Publication</span>
-          <h3 class="update-title">Abstract submitted to <em>AIAA SciTech Forum 2027</em></h3>
+          <h2 class="update-title">Abstract submitted to <em>AIAA SciTech Forum 2027</em></h2>
           <p class="update-body">
             Framework abstract submitted to the Intelligent Systems: Space Trusted Autonomy track at the AIAA SciTech Forum 2027. Decision notification expected on or about August 24, 2026. First of a multi-venue formal publication push that also targets JAIS, SAFECOMP, and a NIST companion piece.
           </p>
@@ -471,7 +461,7 @@
         <div class="update-date">April 2026</div>
         <div class="update-card">
           <span class="update-type">Accreditation</span>
-          <h3 class="update-title">ANAB accreditation conversation <em>opened</em></h3>
+          <h2 class="update-title">ANAB accreditation conversation <em>opened</em></h2>
           <p class="update-body">
             Intake response submitted to the ANSI National Accreditation Board, opening the formal conversation toward eventual ISO/IEC 17065 accreditation for certification bodies. ANAB accreditation is the path that transforms the SCL mark from a credible third-party determination into a regulatory instrument.
           </p>
@@ -483,7 +473,7 @@
         <div class="update-date">April 2026</div>
         <div class="update-card">
           <span class="update-type">Framework Release</span>
-          <h3 class="update-title">Framework v2.1.1 &mdash; Human factors expansion</h3>
+          <h2 class="update-title">Framework v2.1.1 &mdash; Human factors expansion</h2>
           <p class="update-body">
             AI-9 Human and AI Teaming expanded with three new sub-requirements: AI-9.7 Operator Qualification, AI-9.8 Workload Management, and AI-9.9 Training Program Requirements. New AI-8.5 Public Disclosure Support covering external model cards, EU AI Act Article 13 user information, EO 14110 and OMB M-24-10 federal AI inventory, and EU AI Act Article 71 public database registration.
           </p>
@@ -495,7 +485,7 @@
         <div class="update-date">April 2026</div>
         <div class="update-card">
           <span class="update-type">Trademark</span>
-          <h3 class="update-title">Three USPTO trademark filings &mdash; <em>the mark on record</em></h3>
+          <h2 class="update-title">Three USPTO trademark filings &mdash; <em>the mark on record</em></h2>
           <p class="update-body">
             Three applications filed with the United States Patent and Trademark Office under Class 42 (scientific and technological services): the <strong>Safety Critical Labs</strong> name, the <strong>SCL design mark</strong> covering the logo and seal, and the <strong>SCL Certified</strong> certification mark. All three now in formal review.
           </p>
@@ -507,7 +497,7 @@
         <div class="update-date">April 2026</div>
         <div class="update-card">
           <span class="update-type">Operations</span>
-          <h3 class="update-title">Logo and seal design <em>finalized</em></h3>
+          <h2 class="update-title">Logo and seal design <em>finalized</em></h2>
           <p class="update-body">
             Final mark design completed. The SCL seal is the visible identifier on certificates, the digital badge, and the verification page. Prerequisite for the design mark trademark filing that followed in the same month.
           </p>
@@ -519,7 +509,7 @@
         <div class="update-date">January 2026</div>
         <div class="update-card">
           <span class="update-type">Framework Release</span>
-          <h3 class="update-title">Framework v2.1 &mdash; ODD and Privacy</h3>
+          <h2 class="update-title">Framework v2.1 &mdash; ODD and Privacy</h2>
           <p class="update-body">
             Added <strong>AI-1.0 Operational Design Domain</strong> with Operational Claim and eight attribute categories, formalizing the certification scope envelope. Added <strong>AI-10 Privacy and Data Protection</strong> with seven sub-requirements. Section 1.3 introduced the Domain Standards Citation Convention. Mission Support tier renamed to Operational Support throughout.
           </p>
@@ -531,7 +521,7 @@
         <div class="update-date">October 2025</div>
         <div class="update-card">
           <span class="update-type">Framework Release</span>
-          <h3 class="update-title">Framework v2.0 &mdash; Risk Score Methodology</h3>
+          <h2 class="update-title">Framework v2.0 &mdash; Risk Score Methodology</h2>
           <p class="update-body">
             Added AI-4.6 Operational Validation Without Ground Truth and AI-9.6 Operational Role Verification. Introduced <strong>Appendix D Risk Score Methodology</strong> &mdash; the structured, reproducible scoring system that issues a quantified risk score alongside every certification determination.
           </p>
@@ -543,7 +533,7 @@
         <div class="update-date">February 2025</div>
         <div class="update-card">
           <span class="update-type">Framework Release</span>
-          <h3 class="update-title">Framework v1.0 &mdash; <em>initial publication</em></h3>
+          <h2 class="update-title">Framework v1.0 &mdash; <em>initial publication</em></h2>
           <p class="update-body">
             First public release of the SCL AI Requirements Framework, registered with a citable DOI on Zenodo. Initial set of requirement areas addressing AI-specific failure modes not covered by traditional software assurance practices.
           </p>
@@ -629,17 +619,7 @@
 </footer>
 
 <script>
-/* ─── Hero cursor glow ───────────────────────── */
-(function() {
-  var glow = document.querySelector('.fw-hero-glow');
-  var hero = document.querySelector('.inner-hero');
-  if (!glow || !hero) return;
-  hero.addEventListener('mousemove', function(e) {
-    var rect = hero.getBoundingClientRect();
-    glow.style.setProperty('--glow-x', (e.clientX - rect.left) + 'px');
-    glow.style.setProperty('--glow-y', (e.clientY - rect.top) + 'px');
-  });
-})();
+/* Hero cursor glow driver lives in footer.js (promoted 2026-08-24) */
 
 /* ─── Filter chips ───────────────────────────── */
 (function() {
@@ -676,8 +656,9 @@
 
   chips.forEach(function(chip) {
     chip.addEventListener('click', function() {
-      chips.forEach(function(c) { c.classList.remove('active'); });
+      chips.forEach(function(c) { c.classList.remove('active'); c.setAttribute('aria-pressed', 'false'); });
       chip.classList.add('active');
+      chip.setAttribute('aria-pressed', 'true');
       applyFilter(chip.dataset.filter);
     });
   });

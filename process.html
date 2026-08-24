@@ -27,17 +27,7 @@
 /* ─── PROCESS PAGE STYLES ────────────────────────────────── */
 
 /* ─── HERO ENHANCEMENT (cursor glow) ──────────────────────── */
-.inner-hero { z-index: 0; }
-.fw-hero-glow {
-  position: absolute; inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.4s;
-  background: radial-gradient(520px circle at var(--glow-x, 70%) var(--glow-y, 30%), rgba(46,109,180,0.10), transparent 60%);
-}
-.inner-hero:hover .fw-hero-glow { opacity: 1; }
-.inner-hero-inner { z-index: 2; position: relative; }
+/* Hero cursor glow styles live in styles.css (promoted 2026-08-24) */
 
 /* ─── BRACKETED MONO EYEBROW + SHOWCASE TITLE ─────────────── */
 .fw-eyebrow-mono {
@@ -203,7 +193,7 @@
 .ev-item-desc strong { color: var(--ink); }
 
 /* RESPONSIVE */
-@media (max-width: 880px) {
+@media (max-width: 880.98px) {
   .global-nav { padding: 0 20px; }
   .gn-links { display: none; }
   .inner-hero { padding: 60px 24px 48px; }
@@ -257,7 +247,7 @@ body, body * { color: #0C2242 !important; }
   .gn-dropdown-menu a { color: rgba(12,34,66,0.78) !important; padding: 9px 14px !important; border-radius: 6px; }
   .gn-dropdown-menu a:hover { color: #0C2242 !important; background: rgba(12,34,66,0.06) !important; }
 }
-@media (max-width: 880px) {
+@media (max-width: 880.98px) {
   .gn-dropdown-toggle { text-transform: uppercase; letter-spacing: -0.01em; }
   .gn-dropdown-menu { position: static !important; background: none !important; border: none !important; box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; min-width: 0 !important; }
   .gn-dropdown-menu a { color: rgba(12,34,66,0.72) !important; }
@@ -639,17 +629,7 @@ body, body * { color: #0C2242 !important; }
    comes from the shared /nav.js like every other page — the inline copy was
    retired 2026-08-24. Do NOT re-add inline nav bindings here (double-fire). */
 
-/* ─── Hero cursor glow ───────────────────────── */
-(function() {
-  var glow = document.querySelector('.fw-hero-glow');
-  var hero = document.querySelector('.inner-hero');
-  if (!glow || !hero) return;
-  hero.addEventListener('mousemove', function(e) {
-    var rect = hero.getBoundingClientRect();
-    glow.style.setProperty('--glow-x', (e.clientX - rect.left) + 'px');
-    glow.style.setProperty('--glow-y', (e.clientY - rect.top) + 'px');
-  });
-})();
+/* Hero cursor glow driver lives in footer.js (promoted 2026-08-24) */
 
 // Scale certificate reveal iframe to fit its frame width
 function scaleCertReveal() {

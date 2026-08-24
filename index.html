@@ -798,7 +798,7 @@
   .news-header { grid-template-columns: 1fr; gap: 28px; padding-bottom: 40px; align-items: stretch; }
   .news-lead { font-size: 15px; padding-left: 16px; }
 }
-@media (max-width: 880px) {
+@media (max-width: 880.98px) {
   .news-section { padding: 60px 24px 80px; }
 }
 
@@ -986,7 +986,7 @@
   /* Mobile: keep the shared hamburger-accordion look (inline items, no floating
      panel) with readable navy items. The base desktop .gn-dropdown-menu rule in
      styles.css otherwise leaks its dark panel + low-contrast text onto mobile. */
-  @media (max-width: 880px) {
+  @media (max-width: 880.98px) {
     .gn-dropdown-toggle { text-transform: uppercase; letter-spacing: -0.01em; }  /* match FRAMEWORK/PROCESS casing */
     .gn-dropdown-menu {
       position: static !important; background: none !important;
@@ -1016,7 +1016,8 @@
 
   /* ── Showcase cards: the mark + the framework as dark-panel cards (xAI grid,
      Anthropic color). Cream section, navy cards, blue-glow previews. ── */
-  .showcase-cards { padding: 224px 24px 40px; }   /* more room between the nav and the headline */
+  .showcase-cards { padding: 224px 24px 40px; }
+  @media (max-width: 640px) { .showcase-cards { padding-top: 120px; } }   /* phones: 224px left a third of the first screen empty */   /* more room between the nav and the headline */
   .sc-inner { max-width: 1080px; margin: 0 auto; }
   .sc-eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; text-align: center; }
   .sc-heading { text-align: center; font-size: clamp(26px, 3.2vw, 40px); font-weight: 700; letter-spacing: -0.01em; margin: 12px 0 28px; }
@@ -1055,7 +1056,6 @@
   .sc-puls { animation: sc-puls 3s ease-in-out infinite; }
   @keyframes sc-puls { 0%,100%{opacity:0.4} 50%{opacity:1} }
   .sc-nlbl { fill: #8FABD4; font-size: 8px; font-family: var(--mono); letter-spacing: .5px; }
-  @media (max-width: 640px) { .sc-grid { grid-template-columns: 1fr; } }
 
   /* ── Cards: SCROLL-SCRUBBED WIDEN. Contained (aligned to the hero's 1280
      column) when the section sits low in the viewport; as you SCROLL it upward
@@ -1824,7 +1824,7 @@
   <!-- Cards break out of the centered container to span the full page width. -->
   <div class="sc-grid sc-grid-wide">
       <div class="sc-card" id="sc-cert">
-        <button class="sc-expand" type="button" data-expands="sc-cert-stage">Expand <span class="sc-expand-arw" aria-hidden="true">&rarr;</span></button>
+        <button class="sc-expand" type="button" data-expands="sc-cert-stage" aria-label="Expand the certificate">Expand <span class="sc-expand-arw" aria-hidden="true">&rarr;</span></button>
         <div class="sc-stage cert-stage" id="sc-cert-stage">
           <div class="cert-doc">
 
@@ -2011,7 +2011,7 @@
         <div class="sc-label">Certificate of Conformance</div>
       </div>
       <div class="sc-card" id="sc-fw">
-        <button class="sc-expand" type="button" data-expands="fw-showcase">Expand <span class="sc-expand-arw" aria-hidden="true">&rarr;</span></button>
+        <button class="sc-expand" type="button" data-expands="fw-showcase" aria-label="Expand the thirteen requirement areas">Expand <span class="sc-expand-arw" aria-hidden="true">&rarr;</span></button>
         <div class="sc-stage">
           <div class="fw-canvas-container" id="fw-showcase">
                 <div class="fw3d" aria-hidden="true"><div class="fw3d-scene" id="fw3d-scene"><span class="fw3d-core"></span></div></div>
@@ -2127,7 +2127,7 @@
     <div class="news-rows">
       <div class="nr-statement">
         <div class="nr-eyebrow">[ The frontier ]</div>
-        <h3 class="nr-headline">We track the frontier so the standard keeps pace.</h3>
+        <h2 class="nr-headline">We track the frontier so the standard keeps pace.</h2>
         <a href="/news" class="nr-all">All news <span aria-hidden="true">&rarr;</span></a>
       </div>
       <div class="nr-list">

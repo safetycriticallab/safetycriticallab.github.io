@@ -557,7 +557,7 @@
       ? '<a class="faq-link" href="' + it.link + '">' + escapeHtml(LINK_LABELS[it.link] || 'Read more') + '</a>'
       : '';
     return '<article class="faq-item">'
-      +   '<h3 class="faq-question">' + escapeHtml(it.q) + '</h3>'
+      +   '<h2 class="faq-question">' + escapeHtml(it.q) + '</h2>'
       +   '<p class="faq-answer">' + escapeHtml(it.a) + '</p>'
       +   link
       + '</article>';

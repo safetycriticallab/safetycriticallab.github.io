@@ -27,17 +27,7 @@
 /* ─── ASSESS PAGE ─────────────────────────────────────────── */
 
 /* Hero cursor glow */
-.inner-hero { z-index: 0; }
-.fw-hero-glow {
-  position: absolute; inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.4s;
-  background: radial-gradient(520px circle at var(--glow-x, 70%) var(--glow-y, 30%), rgba(46,109,180,0.10), transparent 60%);
-}
-.inner-hero:hover .fw-hero-glow { opacity: 1; }
-.inner-hero-inner { z-index: 2; position: relative; }
+/* Hero cursor glow styles live in styles.css (promoted 2026-08-24) */
 
 /* Bracketed mono eyebrow + showcase title */
 .fw-eyebrow-mono {
@@ -458,7 +448,7 @@
   padding: 48px;
   text-align: center;
 }
-.results-cta h3 {
+.results-cta h2 {
   font-family: var(--sans);
   font-size: clamp(24px, 2.4vw, 30px);
   font-weight: 600;
@@ -567,7 +557,7 @@
     <!-- STEP 1: Classification -->
     <div class="assess-step active" id="step-1">
       <div class="step-eyebrow">Step 1: Classification</div>
-      <div class="step-title">What kind of system are you building?</div>
+      <div class="step-title" role="heading" aria-level="2">What kind of system are you building?</div>
       <div class="step-desc">These questions help determine which classification tier applies and which requirement areas are relevant to your system.</div>
 
       <div class="q-card">
@@ -635,7 +625,7 @@
     <!-- STEP 2: Data & Testing (AI-1, AI-2, AI-3) -->
     <div class="assess-step" id="step-2">
       <div class="step-eyebrow">Step 2: Data &amp; Testing</div>
-      <div class="step-title">Training data and test coverage</div>
+      <div class="step-title" role="heading" aria-level="2">Training data and test coverage</div>
       <div class="step-desc">These questions map to AI-1 (operational and data foundations), AI-2 (addressing AI bias), and AI-3 (ML test coverage).</div>
 
       <div class="q-card">
@@ -719,7 +709,7 @@
     <!-- STEP 3: Runtime Safety (AI-4, AI-5, AI-6) -->
     <div class="assess-step" id="step-3">
       <div class="step-eyebrow">Step 3: Runtime Safety</div>
-      <div class="step-title">Monitoring, confidence, and edge detection</div>
+      <div class="step-title" role="heading" aria-level="2">Monitoring, confidence, and edge detection</div>
       <div class="step-desc">These questions map to AI-4 (continuous validation), AI-5 (hallucination prevention), and AI-6 (out of distribution detection).</div>
 
       <div class="q-card">
@@ -803,7 +793,7 @@
     <!-- STEP 4: Advanced Requirements (AI-7, AI-8, AI-9, AI-10) -->
     <div class="assess-step" id="step-4">
       <div class="step-eyebrow">Step 4: Robustness &amp; Oversight</div>
-      <div class="step-title">Adversarial testing, explainability, and human teaming</div>
+      <div class="step-title" role="heading" aria-level="2">Adversarial testing, explainability, and human teaming</div>
       <div class="step-desc">These requirements apply based on your classification level. Answer based on your current state. If a requirement doesn't apply to your tier, you can select "Not applicable."</div>
       <div class="tier-hint" id="tierHint4"></div>
 
@@ -932,7 +922,7 @@
     <!-- STEP 5: Architecture & Paradigm Requirements (AI-11, AI-12, AI-13) -->
     <div class="assess-step" id="step-5">
       <div class="step-eyebrow">Step 5: Architecture &amp; Paradigm</div>
-      <div class="step-title">Multi-model, neural network, and continuous learning</div>
+      <div class="step-title" role="heading" aria-level="2">Multi-model, neural network, and continuous learning</div>
       <div class="step-desc">These requirements apply conditionally based on your system's design choices. If your system does not use the indicated architecture or paradigm, select "Not applicable."</div>
       <div class="tier-hint" id="tierHint5"></div>
 
@@ -1061,7 +1051,7 @@
     <div class="results-grid" id="resultsGrid"></div>
 
     <div class="results-cta">
-      <h3>Ready to close the <em>gaps?</em></h3>
+      <h2>Ready to close the <em>gaps?</em></h2>
       <p>Download your assessment report and share it with the SCL team when you're ready to engage.</p>
       <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;align-items:center;">
         <button id="downloadReportBtn" class="btn btn-solid" style="cursor:pointer;">Download Report</button>
@@ -1481,16 +1471,7 @@
   updateTierHint();
 
   // Hero cursor glow
-  (function() {
-    var glow = document.querySelector('.fw-hero-glow');
-    var hero = document.querySelector('.inner-hero');
-    if (!glow || !hero) return;
-    hero.addEventListener('mousemove', function(e) {
-      var rect = hero.getBoundingClientRect();
-      glow.style.setProperty('--glow-x', (e.clientX - rect.left) + 'px');
-      glow.style.setProperty('--glow-y', (e.clientY - rect.top) + 'px');
-    });
-  })();
+  /* Hero cursor glow driver lives in footer.js (promoted 2026-08-24) */
 
 })();
 </script>

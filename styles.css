@@ -427,7 +427,7 @@ h2.section-title em { font-style: italic; color: var(--ink); font-family: var(--
 .footer-top, .footer-wordmark { display: none; }
 
 /* ─── RESPONSIVE ──────────────────────────────────────────── */
-@media (max-width: 880px) {
+@media (max-width: 880.98px) {
   .global-nav { padding: 0 20px; }
   .global-nav-inner { padding: 0 20px; }
 
@@ -557,7 +557,7 @@ h2.section-title em { font-style: italic; color: var(--ink); font-family: var(--
 
 }
 
-@media (max-width: 480px) {
+@media (max-width: 480.98px) {
   /* On phones use the "SCL" abbreviation so the wordmark balances the compact
      search + menu icons. Full name kept for desktop + screen readers (the
      .gn-wordmark link carries an aria-label). */
@@ -641,8 +641,11 @@ h2.section-title em { font-style: italic; color: var(--ink); font-family: var(--
    Navy ink shell + flat cream + dropdown nav + wordmark collapse
    + solid-navy CTA + dark-navy footer. Applies to every page that
    links this sheet, so the header/footer can't drift out of sync.
-   (index.html + process.html carry their own equal copies; page
-   bodies are polished individually.)
+   (index.html + process.html still carry their own shell CSS copies,
+   now BEHIND this sheet on hover: their body-wide navy !important
+   recolor is out-specified by the !important hover colors below.
+   New shell work goes HERE, one phone value (640) + the 880/881 nav
+   boundary are the breakpoints to converge on.)
    ═══════════════════════════════════════════════════════════ */
 
 /* ── Nav: flat cream, navy ink, no hairline/frost ── */
@@ -651,22 +654,22 @@ h2.section-title em { font-style: italic; color: var(--ink); font-family: var(--
 .gn-text em { color: #0C2242; transition: color 0.25s; }
 /* The wordmark links home; give it the same hover shift as the nav links. */
 .gn-wordmark:hover .gn-text,
-.gn-wordmark:hover .gn-text em { color: var(--blue-dk); }
+.gn-wordmark:hover .gn-text em { color: var(--blue-dk) !important; }   /* !important: beats the index/process body-wide navy recolor */
 .gn-text-full { font-size: 19px; }
 .gn-links a { color: #0C2242; }
 /* Hover: shift to the site's hover blue (same move as the search icon and the
    mobile menu) plus an underline, so the feedback is unmissable. The active
    page stays solid ink — you're already there. */
 .gn-links a:hover {
-  color: var(--blue-dk);
+  color: var(--blue-dk) !important;
   text-decoration: underline;
   text-underline-offset: 6px;
   text-decoration-thickness: 1.5px;
 }
 .gn-links a.active { color: #0C2242; font-weight: 600; }
-.gn-links a.active:hover { color: #0C2242; text-decoration: none; }
+.gn-links a.active:hover { color: #0C2242 !important; text-decoration: none; }
 .gn-dropdown-toggle { transition: color 0.25s; }
-.gn-dropdown-toggle:hover { color: var(--blue-dk); }
+.gn-dropdown-toggle:hover { color: var(--blue-dk) !important; }
 .gn-search { color: #0C2242; }
 .gn-cta {
   background: #0C2242 !important; color: #FAF9F5 !important; border-color: #0C2242 !important;
@@ -690,7 +693,7 @@ h2.section-title em { font-style: italic; color: var(--ink); font-family: var(--
 /* Phone wordmark — the static "SCL" still carried the legacy metallic-chrome
    gradient (the pre-shell identity). Flatten it to the same ink navy as the
    desktop collapsed mark so the mobile bar matches the current shell. */
-@media (max-width: 480px) {
+@media (max-width: 480.98px) {
   .gn-text-abbr {
     background: none !important;
     -webkit-text-fill-color: #0C2242 !important;
@@ -790,3 +793,19 @@ h2.section-title em { font-style: italic; color: var(--ink); font-family: var(--
 .skip-link:focus { top: 12px; }
 main:focus { outline: none; }   /* main[tabindex="-1"] is a skip target, not an interactive element */
 .gn-dropdown-toggle:focus-visible { outline: 2px solid var(--blue-dk); outline-offset: 3px; border-radius: 4px; }
+
+
+/* ── Hero cursor glow (shared) ── Promoted 2026-08-24 from 14 identical
+   per-page copies; the mousemove driver lives in footer.js. Pages provide
+   <div class="fw-hero-glow"> inside .inner-hero, nothing else. */
+.inner-hero { z-index: 0; }
+.fw-hero-glow {
+  position: absolute; inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s;
+  background: radial-gradient(520px circle at var(--glow-x, 70%) var(--glow-y, 30%), rgba(46,109,180,0.10), transparent 60%);
+}
+.inner-hero:hover .fw-hero-glow { opacity: 1; }
+.inner-hero-inner { z-index: 2; position: relative; }

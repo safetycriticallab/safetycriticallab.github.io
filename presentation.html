@@ -3702,7 +3702,7 @@ function renderAgenda(data) {
 }
 
 function renderStandard(data) {
-  let html = '<div class="doi-block"><div><div class="doi-label">Canonical DOI</div><div class="doi-value">' + data.doi + '</div><div class="doi-title">' + data.title + '</div><div class="doi-meta">' + data.publisher + ' · ' + data.license + '</div></div><a href="https://doi.org/' + data.doi + '" target="_blank" class="doi-btn">Download Framework</a></div><div class="features">';
+  let html = '<div class="doi-block"><div><div class="doi-label">Canonical DOI</div><div class="doi-value">' + data.doi + '</div><div class="doi-title">' + data.title + '</div><div class="doi-meta">' + data.publisher + ' · ' + data.license + '</div></div><a href="https://doi.org/' + data.doi + '" target="_blank" rel="noopener" class="doi-btn">Download Framework</a></div><div class="features">';
   data.points.forEach(p => { html += '<div class="feature"><div class="title">' + p.title + '</div><p>' + p.desc + '</p></div>'; });
   html += '</div>';
   return html;
@@ -4248,7 +4248,7 @@ function renderReadiness(data) {
   
   // Callout and link
   html += '<div class="wt-callout" style="margin-top:20px;"><p>' + data.callout + '</p></div>';
-  html += '<div style="text-align:center;margin-top:16px;"><a class="ra-link" href="' + data.link + '" target="_blank">Take the Readiness Assessment</a></div>';
+  html += '<div style="text-align:center;margin-top:16px;"><a class="ra-link" href="' + data.link + '" target="_blank" rel="noopener">Take the Readiness Assessment</a></div>';
   
   return html;
 }

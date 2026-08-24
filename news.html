@@ -438,15 +438,15 @@
 
     <!-- Filter chips -->
     <div class="news-filter-row" id="news-filter-row" role="group" aria-label="Filter by source">
-      <button class="news-filter-chip active" data-filter="all">All sources</button>
-      <button class="news-filter-chip" data-filter="models">Models</button>
-      <button class="news-filter-chip" data-filter="openai">OpenAI</button>
-      <button class="news-filter-chip" data-filter="anthropic">Anthropic</button>
-      <button class="news-filter-chip" data-filter="google">Google</button>
-      <button class="news-filter-chip" data-filter="press">Press</button>
-      <button class="news-filter-chip" data-filter="hai">Stanford HAI</button>
-      <button class="news-filter-chip" data-filter="mit">MIT</button>
-      <button class="news-filter-chip" data-filter="alignment">Alignment Forum</button>
+      <button class="news-filter-chip active" aria-pressed="true" data-filter="all">All sources</button>
+      <button class="news-filter-chip" aria-pressed="false" data-filter="models">Models</button>
+      <button class="news-filter-chip" aria-pressed="false" data-filter="openai">OpenAI</button>
+      <button class="news-filter-chip" aria-pressed="false" data-filter="anthropic">Anthropic</button>
+      <button class="news-filter-chip" aria-pressed="false" data-filter="google">Google</button>
+      <button class="news-filter-chip" aria-pressed="false" data-filter="press">Press</button>
+      <button class="news-filter-chip" aria-pressed="false" data-filter="hai">Stanford HAI</button>
+      <button class="news-filter-chip" aria-pressed="false" data-filter="mit">MIT</button>
+      <button class="news-filter-chip" aria-pressed="false" data-filter="alignment">Alignment Forum</button>
     </div>
 
     <!-- Article grid — populated by JS from seed + live feeds -->
@@ -842,7 +842,7 @@
     }
   }
 
-  /* ── Fetch all feeds (each with its own timeout/fallback) ─ */
+  /* ── Fetch all feeds (no per-fetch timeout by design: every fetch catches to seed/cached content and late cards just arrive late) ── */
   function fetchFeed(feed) {
     return fetch(CORS_PROXY + encodeURIComponent(feed.url))
       .then(function (r) { return r.ok ? r.text() : Promise.reject(new Error('HTTP ' + r.status)); })
@@ -1122,8 +1122,9 @@
   /* ── Filter chip handlers ──────────────────────────────────── */
   document.querySelectorAll('.news-filter-chip').forEach(function (chip) {
     chip.addEventListener('click', function () {
-      document.querySelectorAll('.news-filter-chip').forEach(function (c) { c.classList.remove('active'); });
+      document.querySelectorAll('.news-filter-chip').forEach(function (c) { c.classList.remove('active'); c.setAttribute('aria-pressed', 'false'); });
       chip.classList.add('active');
+      chip.setAttribute('aria-pressed', 'true');
       activeFilter = chip.getAttribute('data-filter');
       renderGrid();
     });

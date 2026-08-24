@@ -28,17 +28,7 @@
 /* ─── CONTACT PAGE STYLES ────────────────────────────────── */
 
 /* Hero cursor glow */
-.inner-hero { z-index: 0; }
-.fw-hero-glow {
-  position: absolute; inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.4s;
-  background: radial-gradient(520px circle at var(--glow-x, 70%) var(--glow-y, 30%), rgba(46,109,180,0.10), transparent 60%);
-}
-.inner-hero:hover .fw-hero-glow { opacity: 1; }
-.inner-hero-inner { z-index: 2; position: relative; }
+/* Hero cursor glow styles live in styles.css (promoted 2026-08-24) */
 
 /* Bracketed mono eyebrow + showcase title */
 .fw-eyebrow-mono {
@@ -539,17 +529,7 @@ if (form) {
   });
 }
 
-/* Hero cursor glow */
-(function() {
-  var glow = document.querySelector('.fw-hero-glow');
-  var hero = document.querySelector('.inner-hero');
-  if (!glow || !hero) return;
-  hero.addEventListener('mousemove', function(e) {
-    var rect = hero.getBoundingClientRect();
-    glow.style.setProperty('--glow-x', (e.clientX - rect.left) + 'px');
-    glow.style.setProperty('--glow-y', (e.clientY - rect.top) + 'px');
-  });
-})();
+/* Hero cursor glow driver lives in footer.js (promoted 2026-08-24) */
 </script>
 <script src="/footer.js" defer></script>
 <script src="/nav.js" defer></script>
