@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-08",
+  "updated": "2026-08-24",
   "note": "Question library for the Ask SCL page (search.html) and the ask worker grounding corpus (ask-worker.js). Single source of truth. Keep answers factual and do not overstate SCL's status.",
   "entries": [
     {
@@ -145,6 +145,12 @@
       "a": "The news page tracks developments in AI assurance and regulation, and the updates page logs changes to SCL and the framework. You can subscribe to receive briefings. Start with the subscribe page to follow along.",
       "keywords": ["updated", "news", "subscribe", "briefings", "follow", "newsletter", "stay", "latest", "notify"],
       "link": "/subscribe"
+    },
+    {
+      "q": "What powers Ask SCL?",
+      "a": "Ask SCL runs on SCL's own hardware. It is an open-weight large language model, Llama 3.1, that SCL self-hosts, with answers grounded in the published FAQ and verbatim text from the AI Requirements Framework. Questions are not sent to any third-party AI service. It is an informational assistant only and plays no part in certification decisions.",
+      "keywords": ["llm", "model", "llama", "powers", "chatbot", "assistant", "hosted", "local", "hardware", "private", "language"],
+      "link": "/search"
     }
   ]
 }

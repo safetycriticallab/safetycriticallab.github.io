@@ -774,3 +774,19 @@ h2.section-title em { font-style: italic; color: var(--ink); font-family: var(--
   .gn-links .gn-menu-cta-item { display: block; padding: 24px 0 0; }
   .gn-menu-cta-item .gn-cta { width: 100%; }
 }
+/* ── Accessibility shell — skip link + keyboard focus states ── The skip link
+   is the first focusable element on every page (added 2026-08-23); it jumps
+   keyboard users past the ~13 nav tab stops to <main id="main">. Visually
+   hidden until focused. color !important beats the index/process body-wide
+   navy recolor (class specificity wins over their `body *`). */
+.skip-link {
+  position: fixed; left: 16px; top: -64px; z-index: 400;
+  background: #0C2242; color: #FAF9F5 !important;
+  padding: 10px 18px; border-radius: 8px;
+  font-weight: 600; text-decoration: none; font-size: 15px;
+  box-shadow: 0 6px 18px rgba(12, 34, 66, 0.28);
+  transition: top 0.15s ease;
+}
+.skip-link:focus { top: 12px; }
+main:focus { outline: none; }   /* main[tabindex="-1"] is a skip target, not an interactive element */
+.gn-dropdown-toggle:focus-visible { outline: 2px solid var(--blue-dk); outline-offset: 3px; border-radius: 4px; }

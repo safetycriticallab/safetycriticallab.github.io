@@ -31,27 +31,40 @@
     links.appendChild(ctaItem);
   }
 
-  /* Dropdown menus (Company / Briefings) */
+  /* Dropdown menus (Company / Briefings) — aria-expanded tracks the open
+     state so screen readers hear it, and Escape closes + refocuses the
+     toggle so keyboard users aren't stranded in a vanished menu. */
+  function closeDropdowns() {
+    document.querySelectorAll('.gn-dropdown').forEach(function (d) {
+      d.classList.remove('open');
+      var m = d.querySelector('.gn-dropdown-menu');
+      if (m) m.style.display = 'none';
+      var t = d.querySelector('.gn-dropdown-toggle');
+      if (t) t.setAttribute('aria-expanded', 'false');
+    });
+  }
   document.querySelectorAll('.gn-dropdown-toggle').forEach(function (btn) {
     btn.addEventListener('click', function (e) {
       e.stopPropagation();
       var dd = this.closest('.gn-dropdown');
       var menu = dd.querySelector('.gn-dropdown-menu');
       var isOpen = dd.classList.contains('open');
-      document.querySelectorAll('.gn-dropdown').forEach(function (d) {
-        d.classList.remove('open');
-        var m = d.querySelector('.gn-dropdown-menu');
-        if (m) m.style.display = 'none';
-      });
-      if (!isOpen) { dd.classList.add('open'); menu.style.display = 'block'; }
+      closeDropdowns();
+      if (!isOpen) {
+        dd.classList.add('open');
+        menu.style.display = 'block';
+        this.setAttribute('aria-expanded', 'true');
+      }
     });
   });
-  document.addEventListener('click', function () {
-    document.querySelectorAll('.gn-dropdown').forEach(function (d) {
-      d.classList.remove('open');
-      var m = d.querySelector('.gn-dropdown-menu');
-      if (m) m.style.display = 'none';
-    });
+  document.addEventListener('click', closeDropdowns);
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    var open = document.querySelector('.gn-dropdown.open');
+    if (!open) return;
+    var t = open.querySelector('.gn-dropdown-toggle');
+    closeDropdowns();
+    if (t) t.focus();
   });
 
   /* Wordmark scroll-collapse: full name at top, "SCL" past 40px */

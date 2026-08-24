@@ -488,6 +488,7 @@
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 
 <!-- NAV -->
 <nav class="global-nav">
@@ -529,6 +530,7 @@
   </div>
 </nav>
 
+<main id="main" tabindex="-1">
 <div class="page-shell">
 
 <!-- HERO -->
@@ -567,8 +569,8 @@
       <div class="step-desc">These questions help determine which classification tier applies and which requirement areas are relevant to your system.</div>
 
       <div class="q-card">
-        <div class="q-label">What is the primary domain of your AI system?</div>
-        <select class="q-select" id="q-domain">
+        <div class="q-label" id="label-q-domain">What is the primary domain of your AI system?</div>
+        <select class="q-select" id="q-domain" aria-labelledby="label-q-domain">
           <option value="" disabled selected>Select your domain</option>
           <option value="aviation">Aviation / Aerospace</option>
           <option value="automotive">Automotive</option>
@@ -1071,6 +1073,7 @@
 </div><!-- /page-shell -->
 
 <!-- FOOTER -->
+</main>
 <footer class="site-footer">
   <div class="footer-inner">
     <div class="footer-top">

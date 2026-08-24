@@ -100,6 +100,12 @@
   box-shadow: 0 0 0 4px rgba(12,34,66,0.12);
 }
 
+.sub-error {
+  color: #A03422;
+  font-size: 14px;
+  margin: 10px 0 0;
+}
+
 .sub-submit {
   flex-shrink: 0;
   font-family: var(--sans);
@@ -205,6 +211,7 @@
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 
 <nav class="global-nav">
   <div class="global-nav-inner">
@@ -245,6 +252,7 @@
   </div>
 </nav>
 
+<main id="main" tabindex="-1">
 <div class="page-shell">
 
 <section class="subscribe-page">
@@ -278,12 +286,15 @@
       ╚══════════════════════════════════════════════════════════════════╝
     -->
     <form class="sub-form" id="sub-form" novalidate>
-      <input type="email" class="sub-input" id="sub-input" name="email_address" placeholder="you@organization.com" autocomplete="email" required>
+      <input type="email" class="sub-input" id="sub-input" name="email_address" placeholder="you@organization.com" autocomplete="email" required aria-label="Email address">
       <!-- Honeypot. Bots fill this in, humans don't. Checked client-side in the submit handler below. -->
       <input type="text" name="email_address_check" value="" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;opacity:0;height:0;width:0;" aria-hidden="true">
       <input type="hidden" name="locale" value="en">
       <button type="submit" class="sub-submit">Subscribe</button>
     </form>
+    <!-- Persistent, announced error (role=alert) — the box-shadow flash alone
+         is color-only and gone in 1.2s, invisible to screen readers. -->
+    <p class="sub-error" id="sub-error" role="alert" hidden>Enter a valid email address, like you@organization.com.</p>
 
     <div class="sub-receive">
       <div class="sub-receive-label">[ What you'll receive ]</div>
@@ -312,6 +323,7 @@
 
 </div>
 
+</main>
 <footer class="site-footer">
   <div class="footer-inner">
     <div class="footer-top">
@@ -408,11 +420,22 @@
 
   function showError() {
     input.focus();
+    input.setAttribute('aria-invalid', 'true');
+    var err = document.getElementById('sub-error');
+    if (err) err.hidden = false;
     input.style.boxShadow = '0 0 0 4px rgba(200,39,45,0.15)';
     setTimeout(function () { input.style.boxShadow = ''; }, 1200);
   }
 
+  function clearError() {
+    input.removeAttribute('aria-invalid');
+    var err = document.getElementById('sub-error');
+    if (err) err.hidden = true;
+  }
+  input.addEventListener('input', clearError);
+
   function showConfirmation() {
+    clearError();
     form.style.display = 'none';
     confirmation.classList.add('active');
   }

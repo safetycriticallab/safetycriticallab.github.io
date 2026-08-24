@@ -290,6 +290,7 @@
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 
 <nav class="global-nav">
   <div class="global-nav-inner">
@@ -330,6 +331,8 @@
   </div>
 </nav>
 
+<main id="main" tabindex="-1">
+
 <div class="page-shell">
 
 <section class="search-page">
@@ -345,7 +348,7 @@
           <circle cx="11" cy="11" r="7"/>
           <line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
-        <input type="text" class="search-input" id="search-input" placeholder="Search common questions" autocomplete="off" autofocus>
+        <input type="text" class="search-input" id="search-input" placeholder="Search common questions" aria-label="Search common questions" autocomplete="off" autofocus>
       </div>
       <button type="submit" class="search-submit" aria-label="Submit">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -374,6 +377,7 @@
 
 </div>
 
+</main>
 <footer class="site-footer">
   <div class="footer-inner">
     <div class="footer-top">
@@ -626,7 +630,7 @@
       '<article class="faq-item ask-answer">'
       + '<div class="ask-answer-tag">AI answer</div>'
       + '<p class="faq-answer">' + escapeHtml(answer) + '</p>'
-      + '<p class="ask-disclosure">AI generated from SCL\'s published documentation. Verify anything load-bearing against the standard.</p>'
+      + '<p class="ask-disclosure">Generated on SCL\'s own hardware by a self-hosted open-weight model (Llama 3.1), from SCL\'s published documentation. Verify anything load-bearing against the standard.</p>'
       + '</article>'
       + relatedHtml(q);
     showResults();

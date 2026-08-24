@@ -1202,6 +1202,7 @@
   .fw3d-labels { position:absolute; inset:0; z-index:6; pointer-events:none; }
   #fw-showcase:not(.is-expanded) .fw3d-labels { display:none; }
   .fw3d-lbl { position:absolute; transform:translate(-50%,-50%); pointer-events:auto; cursor:pointer; font-family:var(--mono); font-size:11px; line-height:1.2; white-space:nowrap; padding:4px 9px; border-radius:9px; background:rgba(250,249,245,0.82); -webkit-backdrop-filter:blur(2px); backdrop-filter:blur(2px); box-shadow:0 2px 10px rgba(12, 34, 66,0.1); transition:opacity .2s ease, box-shadow .2s ease; will-change:left,top; }
+  .fw3d-lbl:focus-visible { outline:2px solid #2E6DB4; outline-offset:2px; }
   .fw3d-lbl .l-id { color:#2E6DB4 !important; margin-right:6px; letter-spacing:.03em; }
   .fw3d-lbl .l-name { color:#0C2242 !important; font-weight:500; }
   .fw3d-lbl.is-hot, .fw3d-lbl.is-sel { box-shadow:0 4px 16px rgba(12, 34, 66,0.22); }
@@ -1212,8 +1213,8 @@
   .fw3d-tip span { color:#FAF9F5 !important; }
   .fw3d-tip .fw3d-tip-id { opacity:.55; margin-right:8px; }
   #fw-showcase:not(.is-expanded) .fw3d-tip { display:none; }
-  .fw3d-detail { position:absolute; left:38px; bottom:34px; width:min(360px,44%); z-index:7; background:rgba(250,249,245,0.94); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); border:1px solid rgba(12, 34, 66,0.1); border-radius:16px; padding:20px 22px; box-shadow:0 12px 32px rgba(12,34,66,0.12); opacity:0; transform:translateY(10px); pointer-events:none; transition:opacity .28s ease, transform .28s ease; }
-  .fw3d-detail.is-on { opacity:1; transform:none; pointer-events:auto; }
+  .fw3d-detail { position:absolute; left:38px; bottom:34px; width:min(360px,44%); z-index:7; background:rgba(250,249,245,0.94); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); border:1px solid rgba(12, 34, 66,0.1); border-radius:16px; padding:20px 22px; box-shadow:0 12px 32px rgba(12,34,66,0.12); opacity:0; visibility:hidden; transform:translateY(10px); pointer-events:none; transition:opacity .28s ease, transform .28s ease, visibility .28s; }   /* visibility keeps the closed panel's controls out of the tab order */
+  .fw3d-detail.is-on { opacity:1; visibility:visible; transform:none; pointer-events:auto; }
   #fw-showcase:not(.is-expanded) .fw3d-detail { display:none; }
   .fw3d-detail-close { position:absolute; top:6px; right:10px; border:none; background:transparent; color:#0C2242 !important; font-size:22px; line-height:1; cursor:pointer; opacity:.45; }
   .fw3d-detail-close:hover { opacity:1; }
@@ -1551,7 +1552,10 @@
     .nr-row { padding: 16px 2px; gap: 16px; }
   }
 
-  /* ── MOBILE CONSTELLATION TILE (≤640px) — on phones the four showcase cards
+  /* ── MOBILE CONSTELLATION TILE (phones ≤640px + coarse-pointer up to 985px,
+     so landscape phones / portrait tablets keep the touch-first tile through
+     rotation — same coverage pattern as presentation.html's phone chrome; the
+     JS mq string below must stay identical) — on phones the four showcase cards
      fold into ONE navy tile: a rounded dark card holding the drifting
      constellation field (light stars on navy). Scroll-scrubbed like the
      desktop cards' widen: --expand 0..1 grows the card from an inset, rounded
@@ -1560,7 +1564,7 @@
      Desktop is untouched — .smc-wrap stays display:none above the breakpoint
      and the field JS only builds once the query matches. ── */
   .smc-wrap { display: none; }
-  @media (max-width: 640px) {
+  @media (max-width: 640px), (max-width: 985px) and (pointer: coarse) {
     .sc-grid-wide { display: none !important; }
     .smc-wrap { display: block; }
     .smc { position: relative; height: clamp(440px, 64vh, 560px); --expand: 0; --edge: 0px; }
@@ -1660,7 +1664,7 @@
       color: rgba(250, 249, 245, 0.95) !important;
     }
   }
-  @media (max-width: 640px) and (prefers-reduced-motion: reduce) {
+  @media (max-width: 640px) and (prefers-reduced-motion: reduce), (max-width: 985px) and (pointer: coarse) and (prefers-reduced-motion: reduce) {
     /* no scrub: the resting state is the inset rounded tile, full pattern */
     .smc { --expand: 0 !important; }
     .smc-node { left: var(--nx); top: var(--ny); }
@@ -1668,6 +1672,7 @@
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <!-- Shared SVG symbol — the SCL orb, used by the firework center logo -->
 <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true">
       <defs>
@@ -1744,6 +1749,8 @@
     <a href="/contact" class="gn-cta">Get Certified</a>
   </div>
 </nav>
+
+<main id="main" tabindex="-1">
 
 
 
@@ -1994,7 +2001,7 @@
           <div class="fw-canvas-container" id="fw-showcase">
                 <div class="fw3d" aria-hidden="true"><div class="fw3d-scene" id="fw3d-scene"><span class="fw3d-core"></span></div></div>
                 <div class="fw3d-tip" id="fw3d-tip" aria-hidden="true"><span class="fw3d-tip-id" id="fw3d-tip-id"></span><span id="fw3d-tip-label"></span></div>
-                <div class="fw3d-labels" id="fw3d-labels" aria-hidden="true"></div>
+                <div class="fw3d-labels" id="fw3d-labels" role="group" aria-label="Thirteen requirement areas"></div>
                 <div class="fw3d-detail" id="fw3d-detail" role="dialog" aria-live="polite">
                   <button class="fw3d-detail-close" id="fw3d-detail-close" type="button" aria-label="Close detail">&times;</button>
                   <div class="fw3d-d-id" id="fw3d-d-id"></div>
@@ -2139,6 +2146,8 @@
 </section>
 
 <!-- FOOTER -->
+</main>
+
 <footer class="site-footer">
   <div class="footer-inner">
 
@@ -3454,6 +3463,11 @@
     scene.appendChild(spark);
     var lbl = document.createElement('div');
     lbl.className = 'fw3d-lbl';
+    /* The labels are the keyboard/AT path (the dots stay decorative behind
+       aria-hidden): Enter/Space mirrors click, aria-pressed mirrors is-sel. */
+    lbl.setAttribute('role', 'button');
+    lbl.setAttribute('tabindex', '0');
+    lbl.setAttribute('aria-pressed', 'false');
     var lid = document.createElement('span'); lid.className = 'l-id'; lid.textContent = AREAS[i].id;
     var lnm = document.createElement('span'); lnm.className = 'l-name'; lnm.textContent = AREAS[i].label;
     lbl.appendChild(lid); lbl.appendChild(lnm);
@@ -3482,14 +3496,14 @@
     if (dLink) dLink.href = '/framework#' + rec.area.id.toLowerCase();
     detail.classList.add('is-on');
     showcase.classList.add('has-selection');
-    sparks.forEach(function (s) { var on = (s === rec); s.spark.classList.toggle('is-sel', on); s.label.classList.toggle('is-sel', on); });
+    sparks.forEach(function (s) { var on = (s === rec); s.spark.classList.toggle('is-sel', on); s.label.classList.toggle('is-sel', on); s.label.setAttribute('aria-pressed', on ? 'true' : 'false'); });
     updatePause();
   }
   function closeDetail() {
     selected = null;
     detail.classList.remove('is-on');
     showcase.classList.remove('has-selection');
-    sparks.forEach(function (s) { s.spark.classList.remove('is-sel'); s.label.classList.remove('is-sel'); });
+    sparks.forEach(function (s) { s.spark.classList.remove('is-sel'); s.label.classList.remove('is-sel'); s.label.setAttribute('aria-pressed', 'false'); });
     updatePause();
   }
 
@@ -3510,8 +3524,21 @@
         if (selected === rec) closeDetail(); else openDetail(rec);
       });
     });
+    rec.label.addEventListener('focus', function () { setHot(rec, true); });
+    rec.label.addEventListener('blur', function () { setHot(rec, false); });
+    rec.label.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (selected === rec) closeDetail(); else openDetail(rec);
+    });
   });
-  if (dClose) dClose.addEventListener('click', function (e) { e.stopPropagation(); closeDetail(); });
+  if (dClose) dClose.addEventListener('click', function (e) {
+    e.stopPropagation();
+    var back = selected ? selected.label : null;   /* hand focus back so it never strands in the hidden panel */
+    closeDetail();
+    if (back) back.focus();
+  });
   fw3d.addEventListener('click', function (e) { if (e.target === fw3d || e.target === scene) closeDetail(); });
 
   /* ---- Labels track their dots each frame while the modal is open ---- */
@@ -3579,7 +3606,7 @@
   var svg = document.getElementById('smc-stars');
   if (!panel || !svg) return;
 
-  var mq = window.matchMedia('(max-width: 640px)');
+  var mq = window.matchMedia('(max-width: 640px), (max-width: 985px) and (pointer: coarse)');
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
   var SVG_NS = 'http://www.w3.org/2000/svg';
   var W = 420, H = 600;
