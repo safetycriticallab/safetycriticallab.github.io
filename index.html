@@ -1386,7 +1386,9 @@
   @keyframes sc-feed-scroll{ 0%{transform:translateY(0)} 100%{transform:translateY(-50%)} }
   .sc-feed-item{ display:flex; align-items:center; gap:11px; font-size:13px; color:#D6DEEC !important; padding:10px 12px; border-radius:10px; background:rgba(250,249,245,0.06); }
   .sc-badge{ flex-shrink:0; font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:.03em; padding:3px 8px; border-radius:6px; color:#FAF9F5 !important; }
-  .sc-badge-eu{ background:#2E5BBF; } .sc-badge-nist{ background:#1E8A7A; } .sc-badge-fda{ background:#2E7D46; } .sc-badge-faa{ background:#B5642C; }
+  /* badge palette by update type, mirroring the /updates taxonomy
+     (agency badges retired 2026-08-24: the feed shows SCL's own timeline) */
+  .sc-badge-rel{ background:#2E5BBF; } .sc-badge-pub{ background:#1E8A7A; } .sc-badge-acc{ background:#2E7D46; } .sc-badge-ip{ background:#B5642C; }
   .sc-sub-link{ color:#9DB4D6 !important; text-decoration:none; font-weight:600; }
   .sc-sub-link:hover{ color:#FAF9F5 !important; }
 
@@ -2088,24 +2090,24 @@
 
       <div class="sc-card" id="sc-feed">
         <div class="sc-stage sc-ask-stage sc-feed-stage">
-          <!-- Scrolling regulatory feed: the dormant design this card was cut
-               from, finally wired up. Curated evergreen items, doubled for the
-               seamless -50% loop; decorative (aria-hidden) — the label, sub-line
-               and form carry the accessible meaning. Loop pauses off-screen. -->
+          <!-- Scrolling SCL timeline: real milestones mirrored from /updates
+               (only already-public statements), doubled for the seamless -50%
+               loop; decorative (aria-hidden) — the label, sub-line and form
+               carry the accessible meaning. Loop pauses off-screen. -->
           <div class="sc-feed-mask" aria-hidden="true">
             <div class="sc-feed-track" id="sc-feed-track">
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-eu">EU</span>AI Act obligations for general-purpose models</div>
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-nist">NIST</span>Generative AI profile for the AI RMF</div>
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-faa">FAA</span>Roadmap for AI safety assurance in aviation</div>
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-fda">FDA</span>Guidance on AI-enabled device software</div>
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-eu">EU</span>Harmonized standards for high-risk AI</div>
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-nist">NIST</span>Trustworthy AI for critical infrastructure</div>
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-eu">EU</span>AI Act obligations for general-purpose models</div>
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-nist">NIST</span>Generative AI profile for the AI RMF</div>
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-faa">FAA</span>Roadmap for AI safety assurance in aviation</div>
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-fda">FDA</span>Guidance on AI-enabled device software</div>
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-eu">EU</span>Harmonized standards for high-risk AI</div>
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-nist">NIST</span>Trustworthy AI for critical infrastructure</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-rel">RELEASE</span>Framework v3.6 published on Zenodo</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-pub">PAPER</span>White paper posted on SSRN</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-ip">USPTO</span>Three trademark filings on record</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-pub">DEMO</span>Open verification demo on NASA turbofan data</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-acc">ANAB</span>Accreditation conversation opened</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-pub">AIAA</span>Abstract submitted to SciTech Forum 2027</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-rel">RELEASE</span>Framework v3.6 published on Zenodo</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-pub">PAPER</span>White paper posted on SSRN</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-ip">USPTO</span>Three trademark filings on record</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-pub">DEMO</span>Open verification demo on NASA turbofan data</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-acc">ANAB</span>Accreditation conversation opened</div>
+              <div class="sc-feed-item"><span class="sc-badge sc-badge-pub">AIAA</span>Abstract submitted to SciTech Forum 2027</div>
             </div>
           </div>
           <form class="sc-sub-form" action="/subscribe" method="get">
