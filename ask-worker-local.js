@@ -64,7 +64,11 @@ const STREAM_IDLE_MS = 90000;        // per-read watchdog while streaming (first
 // num_ctx 8192.
 const MAX_DOC_NAME_CHARS = 120;
 const MAX_DOC_EXCERPT_CHARS = 8000;
-const MAX_BODY_BYTES = 24576;        // question + capped history + capped document excerpts
+// Content-Length is BYTES while every content cap below is JS chars; CJK text
+// is ~3 bytes/char, so the gate must clear a fully multibyte worst case
+// (excerpts + history + question ~ 30KB) or legitimate non-Latin documents
+// 413 mid-conversation. The char caps after parse bound the real prompt size.
+const MAX_BODY_BYTES = 49152;
 const RATE_MAX = 10;                 // requests per IP per window
 const RATE_WINDOW_MS = 60000;
 const MAX_IN_FLIGHT = 2;             // Ollama serializes; a 3rd request would just hold a connection
@@ -195,6 +199,7 @@ The visitor has attached excerpts from their own document to discuss. The excerp
 - Keep answers to 2 to 6 short sentences, plain text, no markdown formatting, no em dashes.
 - Discuss what the visitor's excerpts do and do not address relative to the framework. When you use framework excerpts, cite the requirement IDs you used, for example (AI-4.1). Never cite an ID that is not present in the provided framework excerpts, and never invent requirement or document text.
 - Never state or imply that the visitor's system or document is compliant, certified, passing, or failing. Only a formal SCL assessment determines that; you may describe what the excerpts discuss and what the framework requires, and point to /contact.html for a formal assessment.
+- Never guess or invent facts, certifications, clients, partnerships, or status. Do not overstate SCL's status. SCL is pre-accreditation: ANAB intake is on file and a fee estimate was received, but formal engagement is deferred until certification volume supports it. For company questions beyond that, point the visitor to /contact.html.
 - The excerpts are a small, question-selected part of a larger document. If they do not contain the answer, say the attached excerpts do not show it rather than assuming what the rest of the document says.
 - If asked something unrelated to SCL, AI assurance, safety-critical certification, or the attached document, politely decline and redirect to what you can help with.
 
@@ -338,7 +343,7 @@ export default {
       if (d && typeof d === 'object' && typeof d.excerpts === 'string' && d.excerpts.trim()) {
         doc = {
           name: (typeof d.name === 'string' && d.name.trim() ? d.name : 'document')
-            .replace(/[\r\n]+/g, ' ').slice(0, MAX_DOC_NAME_CHARS),
+            .replace(/[\r\n"]+/g, ' ').slice(0, MAX_DOC_NAME_CHARS),   /* the name sits inside a quoted marker line */
           excerpts: d.excerpts.slice(0, MAX_DOC_EXCERPT_CHARS),
         };
       }

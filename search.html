@@ -104,7 +104,10 @@
 .search-form.is-composer .search-icon { display: none; }
 .search-form.is-composer .search-input { font-size: 16px; }
 .search-form.is-composer .search-submit { align-self: center; width: 40px; height: 40px; }
-.search-form.is-composer .ask-attachment { flex-basis: 100%; order: -1; margin: 2px 0 0; }
+/* The wrapper sits FIRST in the DOM so visual order matches tab order in
+   both layouts (chip row above the input in composer mode) */
+.search-form.is-composer .ask-attachment { flex-basis: 100%; margin: 2px 0 0; }
+.ask-attachment.visible { margin-bottom: 6px; }
 /* Drag-a-file invite state */
 .search-form.dragover {
   border-color: var(--blue);
@@ -451,6 +454,7 @@
     <p class="search-lead" id="search-lead">Search common questions about AI certification, the framework, the process, and accreditation.</p>
 
     <form class="search-form" id="search-form">
+      <div class="ask-attachment" id="ask-attachment" role="status"></div>
       <div class="search-input-row">
         <svg class="search-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="11" cy="11" r="7"/>
@@ -463,7 +467,6 @@
           </svg>
         </button>
       </div>
-      <div class="ask-attachment" id="ask-attachment" role="status"></div>
       <input type="file" id="ask-file-input" hidden accept=".pdf,.docx,.txt,.md,application/pdf,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
       <button type="submit" class="search-submit" aria-label="Submit">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -888,7 +891,7 @@
   var DOC_MAX_TEXT_CHARS = 2000000;
   var DOC_PASSAGE_TARGET = 700;
   var DOC_PASSAGE_HARD = 950;
-  var DOC_MAX_PASSAGES = 1200;
+  var DOC_MAX_PASSAGES = 3000;   /* covers the full char cap at ~700 chars/passage */
   var DOC_EXCERPT_BUDGET = 6500;   /* worker caps at 8000; headroom for joins */
   var DOC_PICK_MAX = 8;
   var PDFJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
@@ -1092,26 +1095,32 @@
     var blocks = text.split(/\n\s*\n+/);
     var out = [];
     var cur = '';
+    var capped = false;
     function flush() { if (cur) { out.push(cur); cur = ''; } }
-    for (var i = 0; i < blocks.length && out.length < DOC_MAX_PASSAGES; i++) {
+    for (var i = 0; i < blocks.length; i++) {
+      if (out.length >= DOC_MAX_PASSAGES) { capped = true; break; }
       var b = blocks[i].replace(/\s+/g, ' ').trim();
       if (!b) continue;
-      while (b.length > DOC_PASSAGE_HARD && out.length < DOC_MAX_PASSAGES) {
+      while (b.length > DOC_PASSAGE_HARD) {
+        if (out.length >= DOC_MAX_PASSAGES) { capped = true; break; }
         var cut = b.lastIndexOf(' ', DOC_PASSAGE_TARGET);
-        if (cut < DOC_PASSAGE_TARGET * 0.5) cut = DOC_PASSAGE_TARGET;
+        var atSpace = cut >= DOC_PASSAGE_TARGET * 0.5;
+        if (!atSpace) cut = DOC_PASSAGE_TARGET;   /* forced mid-word cut: no space to skip */
         flush();
         out.push(b.slice(0, cut));
-        b = b.slice(cut + 1);
+        b = b.slice(atSpace ? cut + 1 : cut);
       }
+      if (capped) break;
       if (!b) continue;
       if (cur && (cur.length + b.length + 1) > DOC_PASSAGE_TARGET) flush();
       cur = cur ? cur + ' ' + b : b;
     }
-    flush();
+    if (!capped) flush();
     return {
       passages: out.map(function (t) { return { text: t, lower: t.toLowerCase() }; }),
       wordCount: wordCount,
-      truncated: truncated
+      /* the passage cap is truncation too: content past it is unreachable */
+      truncated: truncated || capped
     };
   }
 
@@ -1158,65 +1167,93 @@
     return pick.map(function (idx) { return attachedDoc.passages[idx].text; }).join('\n[...]\n');
   }
 
-  /* Attachment chip UI. File names are untrusted: textContent only. */
+  /* Attachment chip UI. File names are untrusted: textContent only.
+     The wrapper is a role=status live region: it is made visible while still
+     empty and filled a tick later, because content already present when a
+     region enters the accessibility tree reads as initial content and is
+     not announced. renderSeq orphans a superseded pending fill. */
+  var renderSeq = 0;
   function renderAttachment(state) {
+    var seq = ++renderSeq;
     attachWrap.innerHTML = '';
-    attachWrap.classList.toggle('visible', !!state);
-    if (!state) return;
-    if (state.loading) {
-      var loading = document.createElement('p');
-      loading.className = 'ask-attach-note';
-      loading.textContent = 'Reading ' + state.loading + ' in your browser.';
-      attachWrap.appendChild(loading);
-      return;
-    }
-    if (state.error) {
-      var err = document.createElement('p');
-      err.className = 'ask-attach-note ask-attach-error';
-      err.textContent = state.error;
-      attachWrap.appendChild(err);
-      return;
-    }
-    var chip = document.createElement('span');
-    chip.className = 'ask-chip';
-    var nameEl = document.createElement('span');
-    nameEl.className = 'ask-chip-name';
-    nameEl.textContent = state.doc.name;
-    var metaEl = document.createElement('span');
-    metaEl.className = 'ask-chip-meta';
-    metaEl.textContent = '· ' + state.doc.wordCount.toLocaleString('en-US') + ' words';
-    var removeBtn = document.createElement('button');
-    removeBtn.type = 'button';
-    removeBtn.className = 'ask-chip-remove';
-    removeBtn.setAttribute('aria-label', 'Remove the attached document');
-    removeBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-    removeBtn.addEventListener('click', clearAttachment);
-    chip.appendChild(nameEl);
-    chip.appendChild(metaEl);
-    chip.appendChild(removeBtn);
-    attachWrap.appendChild(chip);
-    var note = document.createElement('p');
-    note.className = 'ask-attach-note';
-    note.textContent = 'Passages relevant to each question are sent to the assistant. The full document stays in your browser.'
-      + (state.doc.truncated ? ' Only the first part of this very large document is available.' : '');
-    attachWrap.appendChild(note);
+    if (!state) { attachWrap.classList.remove('visible'); return; }
+    attachWrap.classList.add('visible');
+    setTimeout(function () {
+      if (seq !== renderSeq) return;
+      if (state.error) {
+        var err = document.createElement('p');
+        err.className = 'ask-attach-note ask-attach-error';
+        err.textContent = state.error;
+        attachWrap.appendChild(err);
+      }
+      if (state.note) {
+        var plain = document.createElement('p');
+        plain.className = 'ask-attach-note';
+        plain.textContent = state.note;
+        attachWrap.appendChild(plain);
+      }
+      if (state.loading) {
+        var loading = document.createElement('p');
+        loading.className = 'ask-attach-note';
+        loading.textContent = 'Reading ' + state.loading + ' in your browser.';
+        attachWrap.appendChild(loading);
+      }
+      if (state.doc) {
+        var chip = document.createElement('span');
+        chip.className = 'ask-chip';
+        var nameEl = document.createElement('span');
+        nameEl.className = 'ask-chip-name';
+        nameEl.textContent = state.doc.name;
+        var metaEl = document.createElement('span');
+        metaEl.className = 'ask-chip-meta';
+        metaEl.textContent = '· ' + state.doc.wordCount.toLocaleString('en-US') + ' words';
+        var removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'ask-chip-remove';
+        removeBtn.setAttribute('aria-label', 'Remove the attached document');
+        removeBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+        removeBtn.addEventListener('click', function () { clearAttachment(true); });
+        chip.appendChild(nameEl);
+        chip.appendChild(metaEl);
+        chip.appendChild(removeBtn);
+        attachWrap.appendChild(chip);
+        var note = document.createElement('p');
+        note.className = 'ask-attach-note';
+        note.textContent = 'Passages relevant to each question are sent to the assistant. The full document stays in your browser.'
+          + (state.doc.truncated ? ' Only the first part of this very large document is available.' : '');
+        attachWrap.appendChild(note);
+      }
+    }, 30);
   }
 
-  function clearAttachment() {
+  /* attachGen orphans an in-flight extraction when the attachment is removed
+     or the conversation is reset: its late result must not re-attach. */
+  var attachGen = 0;
+  function clearAttachment(announce) {
+    attachGen++;
     attachedDoc = null;
-    renderAttachment(null);
+    if (announce === true) {
+      renderAttachment({ note: 'Attachment removed.' });
+      attachBtn.focus();   /* the remove button just destroyed itself */
+    } else {
+      renderAttachment(null);
+    }
   }
 
   function handleAttachFile(file) {
     if (!file || attachBusy) return;
     if (file.size > MAX_FILE_BYTES) {
-      renderAttachment({ error: 'That file is larger than 25 MB. Export a smaller version and try again.' });
+      var sizeMsg = 'That file is larger than 25 MB. Export a smaller version and try again.';
+      renderAttachment(attachedDoc ? { doc: attachedDoc, error: sizeMsg } : { error: sizeMsg });
       return;
     }
     attachBusy = true;
+    attachBtn.disabled = true;
+    var gen = ++attachGen;
     renderAttachment({ loading: file.name });
     extractText(file)
       .then(function (extracted) {
+        if (gen !== attachGen) return;   /* removed or reset while reading */
         var text = extracted.text || '';
         if (!text.replace(/\s+/g, '')) {
           throw new Error('No readable text found in that file. If it is a scanned document, export a text based PDF and try again.');
@@ -1235,6 +1272,7 @@
         input.focus();
       })
       .catch(function (err) {
+        if (gen !== attachGen) return;
         var msg = (err && err.message) ? err.message : 'Could not read that file.';
         /* engine-level exceptions carry messages meant for developers */
         if (err && (err instanceof RangeError || err instanceof TypeError ||
@@ -1242,9 +1280,11 @@
           msg = 'Could not read that file.';
         }
         if (err && err.name === 'PasswordException') msg = 'That PDF is password protected. Remove the password and try again.';
-        renderAttachment({ error: msg });
+        /* a failed replacement must not hide the document that is STILL
+           attached: keep its chip and remove control visible */
+        renderAttachment(attachedDoc ? { doc: attachedDoc, error: msg } : { error: msg });
       })
-      .then(function () { attachBusy = false; });
+      .then(function () { attachBusy = false; attachBtn.disabled = false; });
   }
 
   if (askMode) {
@@ -1253,27 +1293,37 @@
       if (this.files && this.files[0]) handleAttachFile(this.files[0]);
       this.value = '';   /* same file can be re-attached after edits */
     });
+    /* Only react to FILE drags: a dragged text selection or link must keep
+       its default behavior and never light the drop invite. */
+    function dragHasFiles(e) {
+      var t = e.dataTransfer && e.dataTransfer.types;
+      if (!t) return false;
+      for (var i = 0; i < t.length; i++) { if (t[i] === 'Files') return true; }
+      return false;
+    }
     var dragDepth = 0;
     form.addEventListener('dragenter', function (e) {
+      if (!dragHasFiles(e)) return;
       e.preventDefault();
       dragDepth++;
       form.classList.add('dragover');
     });
-    form.addEventListener('dragover', function (e) { e.preventDefault(); });
+    form.addEventListener('dragover', function (e) { if (dragHasFiles(e)) e.preventDefault(); });
     form.addEventListener('dragleave', function () {
       dragDepth = Math.max(0, dragDepth - 1);
       if (dragDepth === 0) form.classList.remove('dragover');
     });
     form.addEventListener('drop', function (e) {
+      if (!dragHasFiles(e)) return;
       e.preventDefault();
       dragDepth = 0;
       form.classList.remove('dragover');
       var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
       if (f) handleAttachFile(f);
     });
-    /* a drop that misses the form must not navigate the page away */
-    window.addEventListener('dragover', function (e) { e.preventDefault(); });
-    window.addEventListener('drop', function (e) { e.preventDefault(); });
+    /* a FILE drop that misses the form must not navigate the page away */
+    window.addEventListener('dragover', function (e) { if (dragHasFiles(e)) e.preventDefault(); });
+    window.addEventListener('drop', function (e) { if (dragHasFiles(e)) e.preventDefault(); });
   } else {
     attachBtn.style.display = 'none';
   }
