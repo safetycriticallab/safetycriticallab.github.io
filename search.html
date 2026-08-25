@@ -91,8 +91,18 @@
   box-shadow: 0 4px 24px rgba(46,109,180,0.16);
 }
 /* Composer mode: once a conversation exists the form relocates below the
-   thread and compacts from hero question box to chat composer */
-.search-form.is-composer { min-height: 0; padding: 14px 18px; margin-top: 18px; }
+   thread and compacts from hero question box to a single-row chat composer */
+.search-form.is-composer {
+  min-height: 0;
+  padding: 8px 10px 8px 20px;
+  margin-top: 18px;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+.search-form.is-composer .search-icon { display: none; }
+.search-form.is-composer .search-input { font-size: 16px; }
+.search-form.is-composer .search-submit { align-self: center; width: 40px; height: 40px; }
 
 .search-input-row {
   display: flex;
@@ -252,8 +262,10 @@
   color: #fff;
 }
 
-/* ── Ask SCL conversation thread (streamed, multi-turn) ── */
-.ask-thread { display: flex; flex-direction: column; gap: 14px; }
+/* ── Ask SCL conversation thread (streamed, multi-turn) ──
+   Chat chain: user bubbles right in navy, AI bubbles left on white,
+   mirrored corner tails. FAQ cards keep their card look below the thread. */
+.ask-thread { display: flex; flex-direction: column; gap: 16px; }
 .ask-msg-user {
   align-self: flex-end; max-width: 78%;
   background: #0C2242; color: #FAF9F5;
@@ -262,8 +274,18 @@
   font-size: 14.5px; line-height: 1.55;
   overflow-wrap: anywhere;
 }
-.ask-msg-ai { align-self: stretch; }
-.ask-msg-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.ask-msg-ai { align-self: flex-start; max-width: 85%; }
+.ask-msg-body {
+  margin: 0;
+  background: #fff;
+  border: 1px solid rgba(46,109,180,0.22);
+  border-radius: 14px 14px 14px 4px;
+  box-shadow: 0 1px 4px rgba(15,35,64,0.05);
+  padding: 12px 16px;
+  font-size: 15px; line-height: 1.65;
+  color: rgba(12,34,66,0.92);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
 .ask-msg-note .ask-msg-body { color: rgba(12,34,66,0.78); }   /* --ink-3 is 3.2:1, under AA */
 .ask-caret {
   display: inline-block; width: 7px; height: 15px;
@@ -289,17 +311,14 @@
 }
 .ask-new:hover { color: #0C2242; }
 
-/* AI answer card (only used when ASK_ENDPOINT is configured) */
-.ask-answer {
-  border-color: var(--blue);
-}
+/* Sender tag above each AI bubble (only used when ASK_ENDPOINT is configured) */
 .ask-answer-tag {
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: #0C2242;
-  margin-bottom: 10px;
+  color: rgba(12,34,66,0.55);
+  margin: 0 0 6px 2px;
 }
 .ask-disclosure {
   font-size: 12px;
@@ -327,7 +346,9 @@
 @media (max-width: 640px) {
   .search-page { padding: 56px 24px 80px; }
   .search-form { padding: 20px 22px; min-height: 160px; }
+  .search-form.is-composer { padding: 8px 10px 8px 16px; min-height: 0; }
   .ask-msg-user { max-width: 92%; }
+  .ask-msg-ai { max-width: 92%; }
   .search-input { font-size: 17px; }
 }
 </style>
@@ -744,10 +765,10 @@
 
   function addAiMsg() {
     var art = document.createElement('article');
-    art.className = 'faq-item ask-answer ask-msg-ai';
+    art.className = 'ask-msg-ai';
     art.innerHTML = '<div class="ask-answer-tag">AI answer</div>';
     var body = document.createElement('p');
-    body.className = 'faq-answer ask-msg-body';
+    body.className = 'ask-msg-body';
     var textNode = document.createTextNode('');
     var caret = document.createElement('span');
     caret.className = 'ask-caret';
@@ -919,7 +940,7 @@
     run(input.value);
     input.focus();
     setTimeout(function () {
-      var first = resultsList.querySelector('.faq-item, .search-empty, .search-loading');
+      var first = resultsList.querySelector('.faq-item, .ask-msg-user, .search-empty, .search-loading');
       if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 60);
   });
