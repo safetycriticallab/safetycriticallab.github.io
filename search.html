@@ -98,11 +98,55 @@
   margin-top: 18px;
   flex-direction: row;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
 }
 .search-form.is-composer .search-icon { display: none; }
 .search-form.is-composer .search-input { font-size: 16px; }
 .search-form.is-composer .search-submit { align-self: center; width: 40px; height: 40px; }
+.search-form.is-composer .ask-attachment { flex-basis: 100%; order: -1; margin: 2px 0 0; }
+/* Drag-a-file invite state */
+.search-form.dragover {
+  border-color: var(--blue);
+  background: var(--blue-lt);
+  box-shadow: 0 4px 24px rgba(46,109,180,0.16);
+}
+
+/* ── Document attachment (ask mode) ── */
+.ask-attach-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; flex-shrink: 0;
+  border: none; border-radius: 6px; background: transparent;
+  color: rgba(12,34,66,0.72); cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.ask-attach-btn:hover { background: rgba(46,109,180,0.10); color: #0C2242; }
+.ask-attachment { display: none; }
+.ask-attachment.visible { display: block; }
+.ask-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 12px; color: #0C2242;
+  background: rgba(46,109,180,0.08);
+  border: 1px solid rgba(46,109,180,0.25); border-radius: 6px;
+  padding: 5px 8px 5px 10px; max-width: 100%;
+}
+.ask-chip-name {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 34ch;
+}
+.ask-chip-meta { color: rgba(12,34,66,0.72); white-space: nowrap; }
+.ask-chip-remove {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; flex-shrink: 0;
+  border: none; background: none; cursor: pointer; padding: 0;
+  color: rgba(12,34,66,0.72); border-radius: 4px;
+}
+.ask-chip-remove:hover { color: #C8272D; background: rgba(200,39,45,0.08); }
+.ask-attach-note {
+  font-size: 12px; line-height: 1.5; color: rgba(12,34,66,0.72);
+  margin: 6px 0 0;
+}
+.ask-attach-error { color: #C8272D; }
 
 .search-input-row {
   display: flex;
@@ -413,7 +457,14 @@
           <line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
         <input type="text" class="search-input" id="search-input" placeholder="Search common questions" aria-label="Search common questions" autocomplete="off" autofocus>
+        <button type="button" class="ask-attach-btn" id="ask-attach-btn" aria-label="Attach a document. PDF, DOCX, TXT, or MD." title="Attach a document">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+          </svg>
+        </button>
       </div>
+      <div class="ask-attachment" id="ask-attachment" role="status"></div>
+      <input type="file" id="ask-file-input" hidden accept=".pdf,.docx,.txt,.md,application/pdf,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
       <button type="submit" class="search-submit" aria-label="Submit">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <line x1="12" y1="19" x2="12" y2="5"/>
@@ -805,6 +856,7 @@
       askGen++;   /* orphan any in-flight stream: its handlers check this */
       askBusy = false;
       convo = []; thread = null;
+      clearAttachment();   /* the document belongs to the conversation */
       composerHome();
       input.value = '';
       input.placeholder = 'Ask a question';
@@ -824,6 +876,408 @@
     ai.art.scrollIntoView({ block: 'nearest' });
   }
 
+  /* ── Document attachment — the visitor can attach a report and discuss it.
+     The file is parsed entirely in this browser (pdf.js for PDF, a zip
+     reader + native DecompressionStream for DOCX). The FULL document never
+     leaves the page: each question sends only a few KB of passages selected
+     for that question, alongside the question, to the self-hosted model.
+     The worker contract gains an optional {document:{name, excerpts}}. ── */
+  var MAX_FILE_BYTES = 25 * 1024 * 1024;
+  var MAX_PDF_PAGES = 400;
+  var MAX_INFLATED_BYTES = 50 * 1024 * 1024;   /* deflate-bomb guard */
+  var DOC_MAX_TEXT_CHARS = 2000000;
+  var DOC_PASSAGE_TARGET = 700;
+  var DOC_PASSAGE_HARD = 950;
+  var DOC_MAX_PASSAGES = 1200;
+  var DOC_EXCERPT_BUDGET = 6500;   /* worker caps at 8000; headroom for joins */
+  var DOC_PICK_MAX = 8;
+  var PDFJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+  var PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  var attachBtn = document.getElementById('ask-attach-btn');
+  var fileInput = document.getElementById('ask-file-input');
+  var attachWrap = document.getElementById('ask-attachment');
+  var attachedDoc = null;   /* {name, passages:[{text,lower}], wordCount, truncated} */
+  var attachBusy = false;
+
+  var pdfjsPromise = null;
+  function loadPdfJs() {
+    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    if (pdfjsPromise) return pdfjsPromise;
+    pdfjsPromise = new Promise(function (resolve, reject) {
+      var s = document.createElement('script');
+      s.src = PDFJS_SRC;
+      s.onload = function () {
+        if (!window.pdfjsLib) {
+          pdfjsPromise = null;
+          reject(new Error('The PDF reader failed to start. Reload and try again.'));
+          return;
+        }
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+        resolve(window.pdfjsLib);
+      };
+      s.onerror = function () {
+        pdfjsPromise = null;
+        reject(new Error('Could not load the PDF reader. Check your connection and try again, or use a TXT export.'));
+      };
+      document.head.appendChild(s);
+    });
+    return pdfjsPromise;
+  }
+
+  function extractPdf(file) {
+    return loadPdfJs().then(function (pdfjs) {
+      return file.arrayBuffer().then(function (buf) {
+        return pdfjs.getDocument({ data: buf }).promise;
+      }).then(function (doc) {
+        var pages = Math.min(doc.numPages, MAX_PDF_PAGES);
+        var out = [];
+        var p = Promise.resolve();
+        for (var i = 1; i <= pages; i++) {
+          (function (n) {
+            p = p.then(function () { return doc.getPage(n); })
+              .then(function (page) { return page.getTextContent(); })
+              .then(function (tc) {
+                /* keep line breaks so hyphenated line-end words can be rejoined */
+                out.push(tc.items.map(function (it) { return it.str + (it.hasEOL ? '\n' : ' '); }).join(''));
+              });
+          })(i);
+        }
+        return p.then(function () {
+          var truncatedPages = doc.numPages > MAX_PDF_PAGES;
+          doc.destroy();
+          return { text: out.join('\n'), truncated: truncatedPages };
+        }).catch(function (err) {
+          try { doc.destroy(); } catch (e) {}
+          throw err;
+        });
+      });
+    });
+  }
+
+  function readInflated(stream) {
+    var reader = stream.getReader();
+    var chunks = [];
+    var total = 0;
+    function pump() {
+      return reader.read().then(function (res) {
+        if (res.done) return chunks;
+        total += res.value.byteLength;
+        if (total > MAX_INFLATED_BYTES) {
+          reader.cancel().catch(function () {});
+          throw new Error('That document expands beyond what can be read here. Export it as PDF or plain text and try again.');
+        }
+        chunks.push(res.value);
+        return pump();
+      });
+    }
+    return pump().then(function (cs) {
+      var outBuf = new Uint8Array(total);
+      var o = 0;
+      cs.forEach(function (c) { outBuf.set(c, o); o += c.byteLength; });
+      return new TextDecoder().decode(outBuf);
+    });
+  }
+
+  /* DOCX is a zip; read word/document.xml (+ foot/endnotes) with the
+     browser's native inflate. Sizes come from the central directory,
+     which stays valid even when local headers use data descriptors. */
+  function extractDocx(file) {
+    if (!window.DecompressionStream) {
+      return Promise.reject(new Error('This browser cannot read DOCX files. Export the document as PDF or plain text and try again.'));
+    }
+    return file.arrayBuffer().then(function (buf) {
+      var bad = new Error('That file does not look like a valid DOCX document.');
+      var dv = new DataView(buf);
+      var u8 = new Uint8Array(buf);
+      var td = new TextDecoder();
+      var eocd = -1;
+      var min = Math.max(0, buf.byteLength - 65557);
+      for (var i = buf.byteLength - 22; i >= min; i--) {
+        /* comment-length consistency guards against 'PK\x05\x06' bytes that
+           happen to sit inside the archive comment */
+        if (dv.getUint32(i, true) === 0x06054b50 &&
+            i + 22 + dv.getUint16(i + 20, true) === buf.byteLength) { eocd = i; break; }
+      }
+      if (eocd < 0) throw bad;
+      var count = dv.getUint16(eocd + 10, true);
+      var ptr = dv.getUint32(eocd + 16, true);
+      var wanted = { 'word/document.xml': 0, 'word/footnotes.xml': 1, 'word/endnotes.xml': 2 };
+      var found = [];
+      try {
+        for (var e = 0; e < count; e++) {
+          if (dv.getUint32(ptr, true) !== 0x02014b50) break;
+          var method = dv.getUint16(ptr + 10, true);
+          var csize = dv.getUint32(ptr + 20, true);
+          var nlen = dv.getUint16(ptr + 28, true);
+          var elen = dv.getUint16(ptr + 30, true);
+          var clen = dv.getUint16(ptr + 32, true);
+          var lho = dv.getUint32(ptr + 42, true);
+          var name = td.decode(u8.subarray(ptr + 46, ptr + 46 + nlen));
+          if (Object.prototype.hasOwnProperty.call(wanted, name)) found.push({ name: name, method: method, csize: csize, lho: lho, order: wanted[name] });
+          ptr += 46 + nlen + elen + clen;
+        }
+      } catch (err) { throw bad; }
+      if (!found.some(function (f) { return f.name === 'word/document.xml'; })) throw bad;
+      found.sort(function (a, b) { return a.order - b.order; });
+      var parts = [];
+      var chain = Promise.resolve();
+      found.forEach(function (f) {
+        chain = chain.then(function () {
+          var comp;
+          try {
+            if (dv.getUint32(f.lho, true) !== 0x04034b50) throw bad;
+            var lnlen = dv.getUint16(f.lho + 26, true);
+            var lelen = dv.getUint16(f.lho + 28, true);
+            var start = f.lho + 30 + lnlen + lelen;
+            if (start + f.csize > buf.byteLength) throw bad;
+            comp = u8.subarray(start, start + f.csize);
+          } catch (err) { throw bad; }
+          if (f.method === 0) { parts.push(td.decode(comp)); return; }
+          if (f.method !== 8) throw bad;
+          var stream = new Blob([comp]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+          return readInflated(stream).then(function (xml) { parts.push(xml); });
+        });
+      });
+      return chain.then(function () {
+        return { text: parts.map(docxXmlToText).join('\n'), truncated: false };
+      });
+    });
+  }
+
+  function safeCodePoint(n) {
+    return (n >= 0 && n <= 0x10FFFF && !(n >= 0xD800 && n <= 0xDFFF)) ? String.fromCodePoint(n) : ' ';
+  }
+
+  function docxXmlToText(xml) {
+    return xml
+      /* text deleted under tracked changes and field instruction codes are
+         not document content */
+      .replace(/<w:delText[^>]*>[\s\S]*?<\/w:delText>/g, ' ')
+      .replace(/<w:instrText[^>]*>[\s\S]*?<\/w:instrText>/g, ' ')
+      .replace(/<\/w:p>/g, '\n')
+      .replace(/<w:tab[^>]*\/>/g, ' ')
+      .replace(/<w:br[^>]*\/>/g, '\n')
+      .replace(/<[^>]+>/g, '')
+      /* decode &amp; last so double-encoded entities do not double-decode */
+      .replace(/&#x([0-9a-fA-F]+);/g, function (_, h) { return safeCodePoint(parseInt(h, 16)); })
+      .replace(/&#(\d+);/g, function (_, d) { return safeCodePoint(parseInt(d, 10)); })
+      .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+      .replace(/&amp;/g, '&');
+  }
+
+  function extFor(name) {
+    var m = /\.([a-z0-9]+)$/i.exec(name || '');
+    return m ? m[1].toLowerCase() : '';
+  }
+
+  function extractText(file) {
+    var ext = extFor(file.name);
+    if (ext === 'pdf' || file.type === 'application/pdf') return extractPdf(file);
+    if (ext === 'docx') return extractDocx(file);
+    if (ext === 'doc') return Promise.reject(new Error('Legacy .doc is not supported. Save the document as DOCX or PDF and try again.'));
+    if (ext === 'txt' || ext === 'md' || ext === 'markdown' || (file.type && file.type.indexOf('text/') === 0)) {
+      return file.text().then(function (t) { return { text: t, truncated: false }; });
+    }
+    return Promise.reject(new Error('Unsupported file type. Use PDF, DOCX, TXT, or MD.'));
+  }
+
+  /* Split extracted text into passages sized for retrieval. */
+  function buildPassages(raw) {
+    var text = raw.replace(/\u00AD/g, '').replace(/-\s*\n\s*/g, '');
+    var truncated = text.length > DOC_MAX_TEXT_CHARS;
+    if (truncated) text = text.slice(0, DOC_MAX_TEXT_CHARS);
+    var wordCount = (text.match(/\S+/g) || []).length;
+    var blocks = text.split(/\n\s*\n+/);
+    var out = [];
+    var cur = '';
+    function flush() { if (cur) { out.push(cur); cur = ''; } }
+    for (var i = 0; i < blocks.length && out.length < DOC_MAX_PASSAGES; i++) {
+      var b = blocks[i].replace(/\s+/g, ' ').trim();
+      if (!b) continue;
+      while (b.length > DOC_PASSAGE_HARD && out.length < DOC_MAX_PASSAGES) {
+        var cut = b.lastIndexOf(' ', DOC_PASSAGE_TARGET);
+        if (cut < DOC_PASSAGE_TARGET * 0.5) cut = DOC_PASSAGE_TARGET;
+        flush();
+        out.push(b.slice(0, cut));
+        b = b.slice(cut + 1);
+      }
+      if (!b) continue;
+      if (cur && (cur.length + b.length + 1) > DOC_PASSAGE_TARGET) flush();
+      cur = cur ? cur + ' ' + b : b;
+    }
+    flush();
+    return {
+      passages: out.map(function (t) { return { text: t, lower: t.toLowerCase() }; }),
+      wordCount: wordCount,
+      truncated: truncated
+    };
+  }
+
+  /* Per-question passage selection: the question's tokens (plus the previous
+     user turn, so short follow-ups keep their subject) pick the passages that
+     travel. A question with no lexical match sends the document opening so
+     "summarize this" still works. */
+  function selectDocExcerpts(q, sentHistory) {
+    if (!attachedDoc) return '';
+    var toks = tokenize(q);
+    for (var i = sentHistory.length - 1; i >= 0; i--) {
+      if (sentHistory[i].role === 'user') { toks = toks.concat(tokenize(sentHistory[i].content)); break; }
+    }
+    var seen = {};
+    var uniq = [];
+    for (var t = 0; t < toks.length && uniq.length < 24; t++) {
+      if (!seen[toks[t]]) { seen[toks[t]] = 1; uniq.push(toks[t]); }
+    }
+    var scored = [];
+    for (var p = 0; p < attachedDoc.passages.length; p++) {
+      var pass = attachedDoc.passages[p];
+      var s = 0;
+      for (var u = 0; u < uniq.length; u++) {
+        if (containsPhrase(pass.lower, uniq[u])) s++;
+      }
+      if (s > 0) scored.push({ s: s, idx: p });
+    }
+    scored.sort(function (a, b) { return b.s - a.s || a.idx - b.idx; });
+    var pick = [];
+    var used = 0;
+    for (var m = 0; m < scored.length && pick.length < DOC_PICK_MAX; m++) {
+      var len = attachedDoc.passages[scored[m].idx].text.length;
+      if (used + len > DOC_EXCERPT_BUDGET) continue;
+      pick.push(scored[m].idx);
+      used += len;
+    }
+    if (!pick.length) {
+      for (var o = 0; o < attachedDoc.passages.length && used < 3000 && pick.length < 4; o++) {
+        pick.push(o);
+        used += attachedDoc.passages[o].text.length;
+      }
+    }
+    pick.sort(function (a, b) { return a - b; });   /* document order for the model */
+    return pick.map(function (idx) { return attachedDoc.passages[idx].text; }).join('\n[...]\n');
+  }
+
+  /* Attachment chip UI. File names are untrusted: textContent only. */
+  function renderAttachment(state) {
+    attachWrap.innerHTML = '';
+    attachWrap.classList.toggle('visible', !!state);
+    if (!state) return;
+    if (state.loading) {
+      var loading = document.createElement('p');
+      loading.className = 'ask-attach-note';
+      loading.textContent = 'Reading ' + state.loading + ' in your browser.';
+      attachWrap.appendChild(loading);
+      return;
+    }
+    if (state.error) {
+      var err = document.createElement('p');
+      err.className = 'ask-attach-note ask-attach-error';
+      err.textContent = state.error;
+      attachWrap.appendChild(err);
+      return;
+    }
+    var chip = document.createElement('span');
+    chip.className = 'ask-chip';
+    var nameEl = document.createElement('span');
+    nameEl.className = 'ask-chip-name';
+    nameEl.textContent = state.doc.name;
+    var metaEl = document.createElement('span');
+    metaEl.className = 'ask-chip-meta';
+    metaEl.textContent = '· ' + state.doc.wordCount.toLocaleString('en-US') + ' words';
+    var removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'ask-chip-remove';
+    removeBtn.setAttribute('aria-label', 'Remove the attached document');
+    removeBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    removeBtn.addEventListener('click', clearAttachment);
+    chip.appendChild(nameEl);
+    chip.appendChild(metaEl);
+    chip.appendChild(removeBtn);
+    attachWrap.appendChild(chip);
+    var note = document.createElement('p');
+    note.className = 'ask-attach-note';
+    note.textContent = 'Passages relevant to each question are sent to the assistant. The full document stays in your browser.'
+      + (state.doc.truncated ? ' Only the first part of this very large document is available.' : '');
+    attachWrap.appendChild(note);
+  }
+
+  function clearAttachment() {
+    attachedDoc = null;
+    renderAttachment(null);
+  }
+
+  function handleAttachFile(file) {
+    if (!file || attachBusy) return;
+    if (file.size > MAX_FILE_BYTES) {
+      renderAttachment({ error: 'That file is larger than 25 MB. Export a smaller version and try again.' });
+      return;
+    }
+    attachBusy = true;
+    renderAttachment({ loading: file.name });
+    extractText(file)
+      .then(function (extracted) {
+        var text = extracted.text || '';
+        if (!text.replace(/\s+/g, '')) {
+          throw new Error('No readable text found in that file. If it is a scanned document, export a text based PDF and try again.');
+        }
+        var built = buildPassages(text);
+        if (built.wordCount < 40) {
+          throw new Error('That document is too short to discuss meaningfully.');
+        }
+        attachedDoc = {
+          name: file.name.slice(0, 120),
+          passages: built.passages,
+          wordCount: built.wordCount,
+          truncated: built.truncated || extracted.truncated
+        };
+        renderAttachment({ doc: attachedDoc });
+        input.focus();
+      })
+      .catch(function (err) {
+        var msg = (err && err.message) ? err.message : 'Could not read that file.';
+        /* engine-level exceptions carry messages meant for developers */
+        if (err && (err instanceof RangeError || err instanceof TypeError ||
+            (typeof DOMException !== 'undefined' && err instanceof DOMException))) {
+          msg = 'Could not read that file.';
+        }
+        if (err && err.name === 'PasswordException') msg = 'That PDF is password protected. Remove the password and try again.';
+        renderAttachment({ error: msg });
+      })
+      .then(function () { attachBusy = false; });
+  }
+
+  if (askMode) {
+    attachBtn.addEventListener('click', function () { fileInput.click(); });
+    fileInput.addEventListener('change', function () {
+      if (this.files && this.files[0]) handleAttachFile(this.files[0]);
+      this.value = '';   /* same file can be re-attached after edits */
+    });
+    var dragDepth = 0;
+    form.addEventListener('dragenter', function (e) {
+      e.preventDefault();
+      dragDepth++;
+      form.classList.add('dragover');
+    });
+    form.addEventListener('dragover', function (e) { e.preventDefault(); });
+    form.addEventListener('dragleave', function () {
+      dragDepth = Math.max(0, dragDepth - 1);
+      if (dragDepth === 0) form.classList.remove('dragover');
+    });
+    form.addEventListener('drop', function (e) {
+      e.preventDefault();
+      dragDepth = 0;
+      form.classList.remove('dragover');
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) handleAttachFile(f);
+    });
+    /* a drop that misses the form must not navigate the page away */
+    window.addEventListener('dragover', function (e) { e.preventDefault(); });
+    window.addEventListener('drop', function (e) { e.preventDefault(); });
+  } else {
+    attachBtn.style.display = 'none';
+  }
+
   function runAsk(query) {
     var q = (query || '').trim();
     if (!q) { hideResults(); return; }
@@ -841,6 +1295,10 @@
                          conversation must never jump around the input mid-turn */
     input.value = '';
     var sentHistory = convo.slice(-8);
+    /* only question-relevant passages travel, selected fresh each turn */
+    var docPayload = attachedDoc
+      ? { name: attachedDoc.name, excerpts: selectDocExcerpts(q, sentHistory) }
+      : null;
     convo.push({ role: 'user', content: q });
 
     function fail(kind, msg) {
@@ -857,7 +1315,9 @@
     fetch(ASK_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: q, history: sentHistory, stream: true })
+      body: JSON.stringify(docPayload
+        ? { question: q, history: sentHistory, stream: true, document: docPayload }
+        : { question: q, history: sentHistory, stream: true })
     })
       .then(function (r) {
         var ct = r.headers.get('Content-Type') || '';
