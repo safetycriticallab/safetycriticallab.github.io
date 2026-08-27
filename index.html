@@ -1610,9 +1610,14 @@
        expanded view positions them from measured dot rects, not constants) */
     #sc-fw #fw-showcase:not(.is-expanded) { aspect-ratio: 1.35/1; }
     .fw3d { transform: scale(0.68); }
-    /* the modal has room for a bigger ring; nudge its box down so the top
-       chips clear the wrapped intro line */
-    #fw-showcase.is-expanded .fw3d { transform: scale(0.78); top: 96px; }
+    /* expanded modal: the scene ALREADY scales itself 1.92x inside the wobble
+       keyframes (and pre-shifts up 34px), so the wrapper must counter-scale
+       hard — 0.38 keeps every dot inside the frame through the full wobble
+       and clears the intro + CTA down to SE-class Safari heights (swept
+       empirically at 548/660/844px visible; the smaller ring floating in
+       cream also reads more dimensional). top:96 recenters it below the
+       wrapped intro. */
+    #fw-showcase.is-expanded .fw3d { transform: scale(0.38); top: 96px; }
     /* expanded firework, phone: labels collapse to ID-only chips (the full
        names would run off the narrow modal; they stay in the accessibility
        tree and the tap-open detail panel shows them), and the detail panel
