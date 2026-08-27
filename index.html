@@ -1603,11 +1603,16 @@
   @media (max-width: 640px) {
     .sc-grid { grid-template-columns: 1fr; grid-auto-rows: auto; gap: 22px; }
     /* firework: taller stage + a smaller burst so the fixed 92-158px spark
-       reach clears the narrow card (scale rides the WRAPPER — the scene's
+       reach clears the narrow card AT EVERY orbit phase — perspective(780)
+       magnifies near-side sparks ~1.17x, so the scale needs more headroom
+       than the raw reach suggests (scale rides the WRAPPER — the scene's
        orbit animation owns the scene transform; labels stay true because the
        expanded view positions them from measured dot rects, not constants) */
-    #sc-fw #fw-showcase:not(.is-expanded) { aspect-ratio: 1.5/1; }
-    .fw3d { transform: scale(0.78); }
+    #sc-fw #fw-showcase:not(.is-expanded) { aspect-ratio: 1.35/1; }
+    .fw3d { transform: scale(0.68); }
+    /* the modal has room for a bigger ring; nudge its box down so the top
+       chips clear the wrapped intro line */
+    #fw-showcase.is-expanded .fw3d { transform: scale(0.78); top: 96px; }
     /* expanded firework, phone: labels collapse to ID-only chips (the full
        names would run off the narrow modal; they stay in the accessibility
        tree and the tap-open detail panel shows them), and the detail panel
