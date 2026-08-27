@@ -1176,7 +1176,7 @@
   /* Bottom two tiles: the same lit display-box treatment, navy version (keeps
      their light-on-dark content readable) — a cool spotlight glow at the centre
      over a navy radial that darkens toward the corners. */
-  #sc-ask, #sc-feed { background:
+  #sc-ask, #sc-assess { background:
       radial-gradient(ellipse 58% 52% at 50% 40%, rgba(120,160,220,0.16), rgba(120,160,220,0) 58%),
       radial-gradient(ellipse 100% 96% at 50% 44%, #173A64 0%, #0B1D37 100%)
       !important; border:1px solid rgba(250,249,245,0.06); }
@@ -1379,35 +1379,37 @@
   .sc-ask-search input{ flex:1; background:none; border:none; outline:none; color:#FAF9F5 !important; font-family:var(--sans); font-size:14px; }
   .sc-ask-search input::placeholder{ color:rgba(250,249,245,0.5); }
 
-  /* ── Card 4: Stay informed — scrolling regulatory feed (color from agency badges) ── */
-  .sc-feed-stage{ width:100%; align-items:stretch; }
-  .sc-feed-mask{ width:100%; height:196px; overflow:hidden; -webkit-mask-image:linear-gradient(180deg,transparent,#000 16%,#000 84%,transparent); mask-image:linear-gradient(180deg,transparent,#000 16%,#000 84%,transparent); }
-  .sc-feed-track{ display:flex; flex-direction:column; gap:12px; animation:sc-feed-scroll 19s linear infinite; }
-  @keyframes sc-feed-scroll{ 0%{transform:translateY(0)} 100%{transform:translateY(-50%)} }
-  .sc-feed-item{ display:flex; align-items:center; gap:11px; font-size:13px; color:#D6DEEC !important; padding:10px 12px; border-radius:10px; background:rgba(250,249,245,0.06); }
-  .sc-badge{ flex-shrink:0; font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:.03em; padding:3px 8px; border-radius:6px; color:#FAF9F5 !important; }
-  /* badge palette by update type, mirroring the /updates taxonomy
-     (agency badges retired 2026-08-24: the feed shows SCL's own timeline) */
-  .sc-badge-rel{ background:#2E5BBF; } .sc-badge-pub{ background:#1E8A7A; } .sc-badge-acc{ background:#2E7D46; } .sc-badge-ip{ background:#B5642C; }
-  .sc-sub-link{ color:#9DB4D6 !important; text-decoration:none; font-weight:600; }
-  .sc-sub-link:hover{ color:#FAF9F5 !important; }
+  /* ── Card 4: Readiness assessment — the /assess score ring, ambient ──
+     The ring and three area rows cycle through specimen readiness profiles
+     (JS near </body>); the CTA link is the real path to /assess. */
+  .sc-assess-stage{ width:100%; align-items:stretch; gap:18px; }
+  .sc-assess-demo{ display:flex; align-items:center; justify-content:center; gap:26px; min-height:176px; }
+  .sc-ring{ position:relative; width:150px; height:150px; flex-shrink:0; }
+  .sc-ring svg{ width:100%; height:100%; transform:rotate(-90deg); }
+  .sc-ring-bg{ fill:none; stroke:rgba(250,249,245,0.14); stroke-width:9; }
+  .sc-ring-fill{ fill:none; stroke:#FAF9F5; stroke-width:9; stroke-linecap:round; stroke-dasharray:389.6; stroke-dashoffset:389.6; transition:stroke-dashoffset 1.1s cubic-bezier(.4,0,.2,1); }
+  .sc-ring-num{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:33px; font-weight:600; color:#FAF9F5 !important; }
+  .sc-ring-num span{ font-size:16px; font-weight:400; color:rgba(250,249,245,0.6) !important; margin-left:2px; }
+  .sc-assess-rows{ display:flex; flex-direction:column; gap:10px; min-width:0; }
+  .sc-assess-row{ display:flex; align-items:center; gap:10px; font-size:13px; color:#D6DEEC !important; padding:9px 12px; border-radius:10px; background:rgba(250,249,245,0.06); white-space:nowrap; }
+  .sc-assess-id{ font-family:var(--mono); font-size:10.5px; font-weight:600; letter-spacing:.03em; color:#9DB4D6 !important; }
+  /* readiness dots mirror the /assess results key (Strong / Partial / Gap),
+     brightened a step for the navy ground */
+  .sc-assess-dot{ width:9px; height:9px; border-radius:50%; margin-left:auto; flex-shrink:0; background:#5B6B84; transition:background .5s ease; }
+  .sc-assess-dot.is-strong{ background:#3E9E5C; } .sc-assess-dot.is-partial{ background:#D9982F; } .sc-assess-dot.is-gap{ background:#CE4B50; }
+  @media (max-width:960px){ .sc-assess-rows{ display:none; } }   /* narrow fine-pointer windows: the ring alone */
+  @media (prefers-reduced-motion: reduce){ .sc-ring-fill{ transition:none; } .sc-assess-dot{ transition:none; } }
+  .sc-assess-cta{ display:flex; align-items:center; justify-content:center; gap:8px; width:100%; background:#FAF9F5; color:#0C2242 !important; border-radius:10px; padding:11px 18px; font-size:14px; font-weight:600; text-decoration:none; transition:background .2s ease; }
+  .sc-assess-cta:hover{ background:#ECE7DB; }
 
   /* Common-questions tile → mirrors the /search "Ask SCL" page: starter question
      chips that deep-link into a search, over the real search bar. */
   /* (.sc-chips question pills retired 2026-08-24: the card now demos the live
      assistant with the .sc-chat loop; the search form remains the real path) */
 
-  /* Stay-informed tile → mirrors the /subscribe page: what you'll receive + an
-     email signup (the tile links through to /subscribe to complete it). */
-  /* (.sc-sub-list bullet rows retired 2026-08-24: the card now runs the
-     scrolling regulatory feed those rows stood in for) */
-  .sc-feed-track.is-paused{ animation-play-state:paused; }
-  @media (prefers-reduced-motion: reduce){ .sc-feed-track{ animation:none; } }
-  .sc-sub-form{ display:flex; gap:8px; width:100%; }
-  .sc-sub-form input{ flex:1; min-width:0; background:rgba(250,249,245,0.08); border:1px solid rgba(250,249,245,0.18); border-radius:10px; padding:11px 14px; color:#FAF9F5 !important; font-family:var(--sans); font-size:14px; outline:none; }
-  .sc-sub-form input::placeholder{ color:rgba(250,249,245,0.5); }
-  .sc-sub-btn{ background:#FAF9F5; color:#0C2242 !important; border:none; border-radius:10px; padding:11px 18px; font-family:var(--sans); font-size:14px; font-weight:600; cursor:pointer; white-space:nowrap; transition:background .2s ease; }
-  .sc-sub-btn:hover{ background:#ECE7DB; }
+  /* (Stay-informed tile retired 2026-08-26: the fourth card is now the
+     readiness assessment; subscribe still lives in the nav, the footer and
+     /subscribe. Its ticker + email-form CSS went with it.) */
 
   /* ── Footer: Anthropic-style. A left brand column (small SCL mark up top,
      copyright + social pinned to the bottom) with link columns on the right,
@@ -2088,35 +2090,31 @@
         <div class="sc-sub">Ask SCL about certification, the framework, and the process.</div>
       </div>
 
-      <div class="sc-card" id="sc-feed">
-        <div class="sc-stage sc-ask-stage sc-feed-stage">
-          <!-- Scrolling SCL timeline: real milestones mirrored from /updates
-               (only already-public statements), doubled for the seamless -50%
-               loop; decorative (aria-hidden) — the label, sub-line and form
-               carry the accessible meaning. Loop pauses off-screen. -->
-          <div class="sc-feed-mask" aria-hidden="true">
-            <div class="sc-feed-track" id="sc-feed-track">
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-rel">RELEASE</span>Framework v3.6 published on Zenodo</div>
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-pub">PAPER</span>White paper posted on SSRN</div>
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-ip">USPTO</span>Three trademark filings on record</div>
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-pub">DEMO</span>Open verification demo on NASA turbofan data</div>
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-acc">ANAB</span>Accreditation conversation opened</div>
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-pub">AIAA</span>Abstract submitted to SciTech Forum 2027</div>
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-rel">RELEASE</span>Framework v3.6 published on Zenodo</div>
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-pub">PAPER</span>White paper posted on SSRN</div>
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-ip">USPTO</span>Three trademark filings on record</div>
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-pub">DEMO</span>Open verification demo on NASA turbofan data</div>
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-acc">ANAB</span>Accreditation conversation opened</div>
-              <div class="sc-feed-item"><span class="sc-badge sc-badge-pub">AIAA</span>Abstract submitted to SciTech Forum 2027</div>
+      <div class="sc-card" id="sc-assess">
+        <div class="sc-stage sc-ask-stage sc-assess-stage">
+          <!-- Ambient readiness demo: the /assess score ring plus three area
+               rows, cycling through CANNED specimen profiles (mirrors the
+               results report; no real scoring runs here). Decorative:
+               aria-hidden; the label, sub-line and the start link carry the
+               accessible meaning. Loop pauses off-screen. -->
+          <div class="sc-assess-demo" aria-hidden="true">
+            <div class="sc-ring">
+              <svg viewBox="0 0 140 140">
+                <circle class="sc-ring-bg" cx="70" cy="70" r="62"/>
+                <circle class="sc-ring-fill" id="sc-ring-fill" cx="70" cy="70" r="62"/>
+              </svg>
+              <div class="sc-ring-num" id="sc-ring-num">0<span>%</span></div>
+            </div>
+            <div class="sc-assess-rows">
+              <div class="sc-assess-row"><span class="sc-assess-id">AI-1</span>Data foundations<span class="sc-assess-dot"></span></div>
+              <div class="sc-assess-row"><span class="sc-assess-id">AI-4</span>Continuous validation<span class="sc-assess-dot"></span></div>
+              <div class="sc-assess-row"><span class="sc-assess-id">AI-6</span>Out-of-distribution detection<span class="sc-assess-dot"></span></div>
             </div>
           </div>
-          <form class="sc-sub-form" action="/subscribe" method="get">
-            <input type="email" name="email" placeholder="you@organization.com" aria-label="Email address" autocomplete="off">
-            <button type="submit" class="sc-sub-btn">Subscribe</button>
-          </form>
+          <a class="sc-assess-cta" href="/assess">Start the assessment &rarr;</a>
         </div>
-        <div class="sc-label">Stay informed</div>
-        <div class="sc-sub"><a href="/subscribe" class="sc-sub-link">Subscribe &rarr;</a> occasional briefings, never on a schedule.</div>
+        <div class="sc-label">Readiness assessment</div>
+        <div class="sc-sub">How ready is your AI system to certify? A free self assessment across the thirteen requirement areas.</div>
       </div>
     </div><!-- /.sc-grid-wide -->
 </section>
@@ -3596,14 +3594,73 @@
   cycle();
 })();
 
-/* Feed tile: pause the regulatory ticker while off-screen (battery politeness;
-   same IO pattern as the demo loop above). */
+/* Assess tile: ambient readiness demo. The ring, number and area dots cycle
+   through canned specimen profiles (same schedule/park pattern as the chat
+   loop above: every step checks visibility, and the observer resumes a parked
+   step on re-entry — battery politeness). Reduced motion: the first profile
+   renders once, static. */
 (function () {
-  var track = document.getElementById('sc-feed-track');
-  if (!track || !('IntersectionObserver' in window)) return;
-  new IntersectionObserver(function (es) {
-    track.classList.toggle('is-paused', !es[es.length - 1].isIntersecting);
-  }, { threshold: 0.05 }).observe(track);
+  var fill = document.getElementById('sc-ring-fill');
+  if (!fill) return;
+  var num = document.getElementById('sc-ring-num');
+  var dots = document.querySelectorAll('#sc-assess .sc-assess-dot');
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var C = 389.6;                                    /* 2*pi*r for r=62; matches the CSS dasharray */
+
+  var PROFILES = [
+    { score: 82, dots: ['is-strong', 'is-strong', 'is-partial'] },
+    { score: 54, dots: ['is-strong', 'is-partial', 'is-gap'] },
+    { score: 37, dots: ['is-partial', 'is-gap', 'is-gap'] },
+  ];
+
+  /* pointer convenience like the cert tile's whole-card click: anywhere on the
+     navy is the assessment (the CTA link stays the accessible/keyboard path) */
+  var card = document.getElementById('sc-assess');
+  card.addEventListener('click', function (e) {
+    if (e.target.closest && e.target.closest('a, button')) return;
+    window.location.href = '/assess';
+  });
+
+  function paint(p) {
+    fill.style.strokeDashoffset = (C * (1 - p.score / 100)) + 'px';
+    Array.prototype.forEach.call(dots, function (d, i) { d.className = 'sc-assess-dot ' + p.dots[i]; });
+  }
+
+  if (reduce.matches) { paint(PROFILES[0]); num.firstChild.nodeValue = PROFILES[0].score; return; }
+
+  var visible = false, resume = null, idx = 0, shown = 0;
+
+  function schedule(fn, ms) {
+    setTimeout(function () {
+      if (!visible) { resume = fn; return; }
+      fn();
+    }, ms);
+  }
+
+  function cycle() {
+    var p = PROFILES[idx % PROFILES.length];
+    idx++;
+    paint(p);
+    var from = shown, steps = 22, i = 0;
+    shown = p.score;
+    (function tick() {
+      i++;
+      var t = 1 - Math.pow(1 - i / steps, 3);       /* easeOutCubic, tracks the ring's CSS ease */
+      num.firstChild.nodeValue = Math.round(from + (p.score - from) * t);
+      if (i < steps) { schedule(tick, 50); return; }
+      schedule(cycle, 3400);
+    })();
+  }
+
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(function (es) {
+      visible = es[es.length - 1].isIntersecting;   /* last entry: batched enter+exit must not latch stale state */
+      if (visible && resume) { var r = resume; resume = null; r(); }
+    }, { threshold: 0.2 }).observe(card);
+  } else {
+    visible = true;
+  }
+  schedule(cycle, 400);                             /* first paint waits for visibility */
 })();
 </script>
 <script>
