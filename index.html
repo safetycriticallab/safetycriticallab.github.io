@@ -1612,12 +1612,13 @@
     .fw3d { transform: scale(0.68); }
     /* expanded modal: the scene ALREADY scales itself 1.92x inside the wobble
        keyframes (and pre-shifts up 34px), so the wrapper must counter-scale
-       hard — 0.38 keeps every dot inside the frame through the full wobble
-       and clears the intro + CTA down to SE-class Safari heights (swept
-       empirically at 548/660/844px visible; the smaller ring floating in
-       cream also reads more dimensional). top:96 recenters it below the
-       wrapped intro. */
-    #fw-showcase.is-expanded .fw3d { transform: scale(0.38); top: 96px; }
+       hard. 0.38 is only the PROBE pose — the firework script measures the
+       burst at this scale on open, then replaces this transform with one that
+       fills and centres the band between the intro line and the CTA on the
+       device at hand (FIT_PROBE there must stay in step with this number).
+       A fixed constant had to clear the smallest phone, which left the ring
+       small and low on everything larger. */
+    #fw-showcase.is-expanded .fw3d { transform: scale(0.38); }
     /* expanded firework, phone: labels collapse to ID-only chips (the full
        names would run off the narrow modal; they stay in the accessibility
        tree and the tap-open detail panel shows them), and the detail panel
@@ -3691,10 +3692,20 @@
   fw3d.addEventListener('click', function (e) { if (e.target === fw3d || e.target === scene) closeDetail(); });
 
   /* ---- Labels track their dots each frame while the modal is open ---- */
+  var core = scene.querySelector('.fw3d-core');
+  var LBL_OFF = 26;                                  /* how far a chip rides outside its dot */
   var rafId = null;
-  function layoutLabels() {
+  function burstCentre(host) {
+    /* Radiate labels from the BURST's centre, not the modal's: the phone fit
+       below translates the burst, and even unfitted the scene sits above
+       centre (the wobble pre-shifts it up). The core dot marks the origin. */
+    var c = core && core.getClientRects().length ? core.getBoundingClientRect() : null;
+    return c ? [c.left + c.width / 2 - host.left, c.top + c.height / 2 - host.top]
+             : [host.width / 2, host.height / 2];
+  }
+  function layoutLabels(raw) {
     var host = showcase.getBoundingClientRect();
-    var cx = host.width / 2, cy = host.height / 2, pos = [];
+    var c = burstCentre(host), cx = c[0], cy = c[1], pos = [];
     for (var k = 0; k < sparks.length; k++) {
       var d = sparks[k].dot.getBoundingClientRect();
       pos.push([d.left + d.width / 2 - host.left, d.top + d.height / 2 - host.top]);
@@ -3706,9 +3717,81 @@
          dots (wobble + perspective) can push a label past the edge; a no-op
          on desktop where the 900px modal was sized for the full names */
       var hw = el.offsetWidth / 2 + 6, hh = el.offsetHeight / 2 + 6;
-      s.left = Math.max(hw, Math.min(host.width - hw, x + dx / len * 26)) + 'px';
-      s.top = Math.max(hh, Math.min(host.height - hh, y + dy / len * 26)) + 'px';
+      var lx = x + dx / len * LBL_OFF, ly = y + dy / len * LBL_OFF;
+      /* raw = leave the chip where it lands: the fit below has to see any
+         overflow to correct for it (a clamped chip would read as "it fits") */
+      s.left = (raw ? lx : Math.max(hw, Math.min(host.width - hw, lx))) + 'px';
+      s.top = (raw ? ly : Math.max(hh, Math.min(host.height - hh, ly))) + 'px';
     }
+  }
+
+  /* ---- Phone fit: size the burst to the room the modal actually has ----
+     Card and desktop ride fixed CSS scales. A phone modal is whatever the
+     device leaves after browser chrome, so one constant either overflows the
+     small phones or floats undersized on the big ones (it read as a small
+     ring adrift in a tall panel). Instead: measure the burst at the CSS probe
+     scale, then scale and centre it into the band between the intro line and
+     the CTA, reserving the label chips and their radial offset at the edges.
+     Runs on expand and on resize; the inline transform is dropped whenever
+     the phone rule does not apply, so the card keeps its own CSS scale. */
+  var PHONE = window.matchMedia('(max-width: 640px)');   /* the shell's one phone value — keep identical to the CSS */
+  var FIT_PROBE = 0.38;        /* the phone CSS scale: what the measurement is taken at */
+  var FIT_PAD = 16;            /* margin the outermost chip keeps from the frame — 12 to look right, plus
+                                  the ~4px the wobble swings past the phase the fit was measured at */
+  function spanOf(host, key) {
+    var L = 1e9, T = 1e9, R = -1e9, B = -1e9, i, r;
+    for (i = 0; i < sparks.length; i++) {
+      r = sparks[i][key].getBoundingClientRect();
+      L = Math.min(L, r.left - host.left); R = Math.max(R, r.right - host.left);
+      T = Math.min(T, r.top - host.top);   B = Math.max(B, r.bottom - host.top);
+    }
+    return (R > L && B > T) ? { l: L, t: T, r: R, b: B, w: R - L, h: B - T } : null;
+  }
+  function fitBurst() {
+    if (!showcase.classList.contains('is-expanded') || !PHONE.matches) { fw3d.style.transform = ''; return; }
+    fw3d.style.transform = 'scale(' + FIT_PROBE + ')';
+    var host = showcase.getBoundingClientRect(), box = fw3d.getBoundingClientRect();
+    var ox = box.left + box.width / 2 - host.left,      /* transform-origin = the wrapper's centre */
+        oy = box.top + box.height / 2 - host.top;
+    var d = spanOf(host, 'dot');
+    if (!d) return;                                     /* nothing laid out yet */
+    var intro = showcase.querySelector('.fw3d-intro'), cta = showcase.querySelector('.sc-modal-cta');
+    /* offsetTop/Height, not rects: both of those carry their own transforms
+       (the intro is mid-transition on open, the CTA is translateX(-50%)) */
+    var top = intro ? intro.offsetTop + intro.offsetHeight + 12 : 24;
+    var bot = cta ? cta.offsetTop - 12 : host.height - 24;
+    var availW = host.width - 2 * FIT_PAD, availH = (bot - top) - 2 * FIT_PAD;
+    var k, tx = 0, ty = 0;
+    function place() { fw3d.style.transform = 'translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px) scale(' + (FIT_PROBE * k).toFixed(3) + ')'; }
+    function centreOnDots() {   /* k scales the burst about the wrapper centre, so the dot span moves with it */
+      tx = host.width / 2 - (ox + k * ((d.l - ox) + (d.r - ox)) / 2);
+      ty = (top + bot) / 2 - (oy + k * ((d.t - oy) + (d.b - oy)) / 2);
+    }
+    /* Pass 1 — dots plus an estimated chip reserve. Width binds on every phone
+       (the ring is round, the modal is tall); height is the guard. */
+    var chip = sparks[0].label.getBoundingClientRect();
+    k = Math.min((availW - 2 * (LBL_OFF + chip.width / 2)) / d.w, (availH - 2 * (LBL_OFF + chip.height / 2)) / d.h);
+    if (!(k > 0)) return;
+    centreOnDots(); place();
+    /* Pass 2 — the chips are what actually touch the frame, and which spark
+       ends up outermost is up to the ring's uneven spoke lengths, so pass one
+       can only estimate. Chip size is fixed, so the chip span is linear in k:
+       measure it unclamped and solve for the k that fills availW/availH. */
+    layoutLabels(true);
+    var l = spanOf(host, 'label');
+    if (!l) { layoutLabels(); return; }
+    var k2 = Math.min((availW - (l.w - k * d.w)) / d.w, (availH - (l.h - k * d.h)) / d.h);
+    if (k2 > 0) {
+      k = Math.max(0.6 * k, Math.min(1.6 * k, k2));     /* a bad measurement can only nudge, never bolt */
+      centreOnDots(); place();
+      /* Pass 3 — centre on the chip span rather than the dot span. The two
+         differ (a chip sits outside its dot, and the outermost chip is rarely
+         the outermost dot), and this is translation only, so one pass is exact. */
+      layoutLabels(true);
+      l = spanOf(host, 'label');
+      if (l) { tx += host.width / 2 - (l.l + l.r) / 2; ty += (top + bot) / 2 - (l.t + l.b) / 2; place(); }
+    }
+    layoutLabels();
   }
   function tick() {
     if (!showcase.classList.contains('is-expanded')) { rafId = null; return; }  // self-stop on collapse
@@ -3724,9 +3807,20 @@
     var isExp = showcase.classList.contains('is-expanded');
     if (isExp === wasExp) return;
     wasExp = isExp;
-    if (isExp) startTracking();
-    else { stopTracking(); closeDetail(); }
+    if (isExp) { fitBurst(); startTracking(); }
+    else { stopTracking(); closeDetail(); fw3d.style.transform = ''; }
   }).observe(showcase, { attributes: true, attributeFilter: ['class'] });
+
+  /* Re-fit on rotate / browser-chrome resize (iOS collapses its toolbar as you
+     scroll, which changes dvh under an open modal). rAF-coalesced. */
+  var refit = null;
+  function queueFit() { if (refit == null) refit = requestAnimationFrame(function () { refit = null; fitBurst(); }); }
+  window.addEventListener('resize', queueFit);
+  window.addEventListener('orientationchange', queueFit);
+  if (PHONE.addEventListener) PHONE.addEventListener('change', queueFit);
+  /* chip widths set the edge reserve, so wait for the mono face if it is still
+     loading (resolves immediately once loaded — no second scale on open) */
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(queueFit);
 })();
 </script>
 <script>

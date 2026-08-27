@@ -102,8 +102,11 @@
   gap: 12px;
 }
 .search-form.is-composer .search-icon { display: none; }
-.search-form.is-composer .search-input { font-size: 16px; }
-.search-form.is-composer .search-submit { align-self: center; width: 40px; height: 40px; }
+.search-form.is-composer .search-input { font-size: 16px; max-height: 152px; }
+.search-form.is-composer .search-submit { align-self: flex-end; width: 40px; height: 40px; }
+/* Once the composer is more than one line tall, attach/send stay on the
+   bottom line with the caret (identical to centre while it is single-line) */
+.search-form.is-composer, .search-form.is-composer .search-input-row { align-items: flex-end; }
 /* The wrapper sits FIRST in the DOM so visual order matches tab order in
    both layouts (chip row above the input in composer mode) */
 .search-form.is-composer .ask-attachment { flex-basis: 100%; margin: 2px 0 0; }
@@ -163,17 +166,27 @@
   flex-shrink: 0;
 }
 
+/* A textarea, not a single-line input: a long question wraps and the box
+   grows downward (JS sets the height from scrollHeight up to max-height,
+   then lets it scroll) the way a chat composer should, instead of running
+   off the right edge where the visitor cannot read what they typed. */
 .search-input {
   flex: 1;
+  display: block;
   background: transparent;
   border: none;
   outline: none;
   font-family: var(--sans);
   font-size: 20px;
   font-weight: 400;
+  line-height: 1.45;
   color: #0C2242;
   padding: 8px 0;
   min-width: 0;
+  resize: none;
+  overflow-y: hidden;          /* JS flips to auto once max-height is reached */
+  overflow-wrap: break-word;   /* an unbroken URL wraps rather than overflowing */
+  max-height: 208px;           /* ~7 lines, then it scrolls */
 }
 .search-input::placeholder {
   color: rgba(12,34,66,0.5);
@@ -320,6 +333,7 @@
   padding: 10px 16px;
   font-size: 14.5px; line-height: 1.55;
   overflow-wrap: anywhere;
+  white-space: pre-wrap;   /* the composer can hold newlines now (shift+enter) */
 }
 .ask-msg-ai { align-self: flex-start; max-width: 85%; }
 .ask-msg-body {
@@ -396,7 +410,11 @@
   .search-form.is-composer { padding: 8px 10px 8px 16px; min-height: 0; }
   .ask-msg-user { max-width: 92%; }
   .ask-msg-ai { max-width: 92%; }
-  .search-input { font-size: 17px; }
+  /* A phone line holds far fewer words, so the same question needs more rows:
+     let the box take a share of the screen rather than a desktop pixel count.
+     dvh so iOS Safari's toolbar counts against it; the vh line is the fallback. */
+  .search-input { font-size: 17px; max-height: 46vh; max-height: 46dvh; }
+  .search-form.is-composer .search-input { max-height: 34vh; max-height: 34dvh; }
 }
 </style>
 </head>
@@ -460,7 +478,7 @@
           <circle cx="11" cy="11" r="7"/>
           <line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
-        <input type="text" class="search-input" id="search-input" placeholder="Search common questions" aria-label="Search common questions" autocomplete="off" autofocus>
+        <textarea class="search-input" id="search-input" rows="1" placeholder="Search common questions" aria-label="Search common questions" autocomplete="off" enterkeyhint="send" autofocus></textarea>
         <button type="button" class="ask-attach-btn" id="ask-attach-btn" aria-label="Attach a document. PDF, DOCX, TXT, or MD." title="Attach a document">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
@@ -611,6 +629,33 @@
   var resultsList  = document.getElementById('search-results-list');
   var resultsLabel = document.getElementById('search-results-label');
   var lead         = document.getElementById('search-lead');
+
+  /* The composer is a textarea: grow it to fit what has been typed (capped by
+     the CSS max-height, after which it scrolls) so a long question stays
+     readable instead of sliding out the right-hand side. setQuery() is the
+     only way to write into it — a bare input.value assignment would leave the
+     box the wrong height. */
+  function autogrow() {
+    input.style.height = 'auto';
+    var max = parseFloat(getComputedStyle(input).maxHeight) || 1e4;
+    var need = input.scrollHeight;
+    input.style.height = Math.min(need, max) + 'px';
+    input.style.overflowY = need > max ? 'auto' : 'hidden';
+  }
+  function setQuery(v) { input.value = v; autogrow(); }
+  input.addEventListener('input', autogrow);
+  window.addEventListener('resize', autogrow);   /* a narrower box rewraps to more lines */
+  autogrow();
+  /* line-height moves when the real face swaps in, so re-measure once */
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(autogrow);
+  /* Enter sends, shift+enter breaks the line — the convention every chat box
+     uses. isComposing keeps an IME's enter from firing a half-typed question. */
+  input.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
+    e.preventDefault();
+    if (typeof form.requestSubmit === 'function') form.requestSubmit();
+    else run(input.value);
+  });
 
   /* Mode 2 (ask) only when an endpoint is configured; otherwise the page is
      an honest question library search. */
@@ -776,6 +821,7 @@
     if (form.classList.contains('is-composer')) return;
     form.classList.add('is-composer');
     resultsWrap.insertBefore(form, resultsList.nextSibling);
+    autogrow();   /* composer type is smaller than hero type */
   }
   function composerHome() {
     if (threadFooter && threadFooter.parentNode) threadFooter.parentNode.removeChild(threadFooter);
@@ -783,6 +829,7 @@
     if (!form.classList.contains('is-composer')) return;
     form.classList.remove('is-composer');
     formHome.parent.insertBefore(form, formHome.next);
+    autogrow();
   }
   /* Turn generation: bumped by "New conversation" so an abandoned in-flight
      stream can never write its answer into the fresh conversation. Every
@@ -861,7 +908,7 @@
       convo = []; thread = null;
       clearAttachment();   /* the document belongs to the conversation */
       composerHome();
-      input.value = '';
+      setQuery('');
       input.placeholder = 'Ask a question';
       hideResults();
       input.focus();
@@ -1343,7 +1390,7 @@
     showResults();
     composerDown();   /* adopt chat layout at send time, not answer time — the
                          conversation must never jump around the input mid-turn */
-    input.value = '';
+    setQuery('');
     var sentHistory = convo.slice(-8);
     /* only question-relevant passages travel, selected fresh each turn */
     var docPayload = attachedDoc
@@ -1355,9 +1402,9 @@
       if (gen !== askGen) return;   /* conversation was reset while in flight */
       askBusy = false;
       convo.pop();
-      if (kind === 'busy') { input.value = q; aiNote(ai, 'Ask SCL is answering another visitor right now. Give it a few seconds and ask again.'); return; }
-      if (kind === 'rate') { input.value = q; aiNote(ai, 'That is a lot of questions in quick succession. Give it a minute and ask again.'); return; }
-      if (kind === 'invalid') { input.value = q; aiNote(ai, (msg || 'That question could not be accepted.') + ' Adjust it and try again.'); return; }
+      if (kind === 'busy') { setQuery(q); aiNote(ai, 'Ask SCL is answering another visitor right now. Give it a few seconds and ask again.'); return; }
+      if (kind === 'rate') { setQuery(q); aiNote(ai, 'That is a lot of questions in quick succession. Give it a minute and ask again.'); return; }
+      if (kind === 'invalid') { setQuery(q); aiNote(ai, (msg || 'That question could not be accepted.') + ' Adjust it and try again.'); return; }
       if (firstTurn) { convo = []; thread = null; renderAskFallback(q); return; }
       aiNote(ai, 'The assistant is unavailable right now. Your conversation is still here; try again in a moment.');
     }
@@ -1446,7 +1493,7 @@
     var btn = e.target.closest('.search-starter');
     if (!btn) return;
     if (askMode && askBusy) return;   /* mid-stream: don't clobber the draft or drop the click silently into a busy guard */
-    input.value = btn.textContent;
+    setQuery(btn.textContent);
     run(input.value);
     input.focus();
     setTimeout(function () {
@@ -1464,7 +1511,7 @@
   /* ?q= deep link — prefill and run automatically */
   var params = new URLSearchParams(window.location.search);
   var q = params.get('q');
-  if (q) { input.value = q; run(q); }
+  if (q) { setQuery(q); run(q); }
 
 })();
 </script>
