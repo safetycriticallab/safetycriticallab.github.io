@@ -1301,10 +1301,13 @@
   }
 
   /* Expand architecture — a floating modal of the SAME live component */
-  .sc-modal-backdrop{ position:fixed; inset:0; background:rgba(12,34,66,.62); -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); opacity:0; pointer-events:none; transition:opacity .3s ease; z-index:90; }
+  /* Backdrop + modal stack ABOVE the fixed nav (z 200) and skip link (z 400):
+     at phone heights the 92vh modal's close button lands in the nav's band,
+     where a lower z-index left it tap-proof (nav intercepted the pointer). */
+  .sc-modal-backdrop{ position:fixed; inset:0; background:rgba(12,34,66,.62); -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); opacity:0; pointer-events:none; transition:opacity .3s ease; z-index:500; }
   body.sc-modal-open .sc-modal-backdrop{ opacity:1; pointer-events:auto; }
   body.sc-modal-open{ overflow:hidden; }
-  #sc-cert-stage.is-expanded, #fw-showcase.is-expanded{ position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:min(92vw,900px); height:min(92vh,800px); max-width:none; margin:0; z-index:100; border-radius:18px; box-shadow:0 40px 120px rgba(12,34,66,.5); }
+  #sc-cert-stage.is-expanded, #fw-showcase.is-expanded{ position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:min(92vw,900px); height:min(92vh,800px); height:min(92dvh,800px); max-width:none; margin:0; z-index:510; border-radius:18px; box-shadow:0 40px 120px rgba(12,34,66,.5); }   /* dvh: iOS Safari's toolbar shrinks the visible viewport; vh line = fallback */
   #fw-showcase.is-expanded{ aspect-ratio:auto; background:#FAF9F5; }
   #sc-cert-stage.is-expanded{ background:#FAF9F5; }   /* was transparent → the panel showed the dimmed page ("blank") behind the cert */
   /* Drop the card's hover-lift transform INSTANTLY on expand (no transition). A
@@ -1591,122 +1594,28 @@
     .nr-row { padding: 16px 2px; gap: 16px; }
   }
 
-  /* ── MOBILE CONSTELLATION TILE (phones ≤640px + coarse-pointer up to 985px,
-     so landscape phones / portrait tablets keep the touch-first tile through
-     rotation — same coverage pattern as presentation.html's phone chrome; the
-     JS mq string below must stay identical) — on phones the four showcase cards
-     fold into ONE navy tile: a rounded dark card holding the drifting
-     constellation field (light stars on navy). Scroll-scrubbed like the
-     desktop cards' widen: --expand 0..1 grows the card from an inset, rounded
-     tile to a full-bleed band as it scrolls in (both directions). --edge is
-     the measured distance from the panel to the viewport edge, set by JS.
-     Desktop is untouched — .smc-wrap stays display:none above the breakpoint
-     and the field JS only builds once the query matches. ── */
-  .smc-wrap { display: none; }
-  @media (max-width: 640px), (max-width: 985px) and (pointer: coarse) {
-    .sc-grid-wide { display: none !important; }
-    .smc-wrap { display: block; }
-    .smc { position: relative; height: clamp(440px, 64vh, 560px); --expand: 0; --edge: 0px; }
-    .smc-card {
-      position: absolute;
-      top: calc(16px * (1 - var(--expand)));
-      bottom: calc(16px * (1 - var(--expand)));
-      left: calc(-1 * var(--edge) * var(--expand));
-      right: calc(-1 * var(--edge) * var(--expand));
-      background: #0C2242;
-      border-radius: calc(20px * (1 - var(--expand)));
-      overflow: hidden;
-      box-shadow: 0 22px 54px rgba(12,34,66,0.28);
-    }
-    .smc-stars { position: absolute; inset: 0; width: 100%; height: 100%; }
-    .smc-line { stroke: rgba(250,249,245,0.22); stroke-width: 0.7; }
-    .smc-star { fill: #FAF9F5; }
-    /* milky-way wash — a barely-there diagonal band of lighter sky across the
-       navy. Static CSS; the positioned star SVG and labels paint above it. */
-    .smc-card::before {
-      content: ""; position: absolute; inset: 0;
-      background: linear-gradient(118deg,
-        rgba(206,222,255,0) 34%,
-        rgba(206,222,255,0.05) 46%,
-        rgba(214,228,255,0.08) 52%,
-        rgba(206,222,255,0.05) 58%,
-        rgba(206,222,255,0) 70%);
-      pointer-events: none;
-    }
-    /* per-node asterism — dim companion stars + faint lines drawn around each
-       named star so the labels read as the alpha of their own constellation.
-       Centred on the glyph (10px pad + half the 22px glyph) so the figure
-       rides the node's drift, bang scale, and expand spread as one rigid
-       shape. Decorative; taps still land on the node itself. */
-    .smc-cst {
-      position: absolute; left: 50%; top: 21px;
-      width: 150px; height: 150px;
-      transform: translate(-50%, -50%);
-      overflow: visible; pointer-events: none;
-    }
-    .smc-cst line { stroke: rgba(250,249,245,0.20); stroke-width: 1; stroke-linecap: round; }
-    .smc-cst circle { fill: #FAF9F5; }
-    /* ignition bloom — a hot core at the constellation centre (50%/46%) that
-       flares as the big-bang fires, then fades as the field expands out. JS
-       drives its opacity + scale off the --bang timeline; screen-blended so it
-       reads as light, not a disc. Sits above the stars, below the labels. */
-    .smc-bloom {
-      position: absolute; left: 50%; top: 46%;
-      width: 260px; height: 260px; border-radius: 50%;
-      transform: translate(-50%, -50%) scale(0.4);
-      background: radial-gradient(circle,
-        rgba(255,255,255,0.90) 0%,
-        rgba(206,222,255,0.55) 26%,
-        rgba(120,160,255,0.16) 52%,
-        rgba(120,160,255,0) 72%);
-      opacity: 0; pointer-events: none; mix-blend-mode: screen;
-      will-change: opacity, transform;
-    }
-    /* the six feature labels, floating at their --nx/--ny constellation spots;
-       plain links — tap navigates. They sit inside the expanding card, so the
-       pattern breathes wider as the tile grows to full bleed. The big-bang rides
-       a per-node --bang (0 collapsed onto centre → 1 at rest); at --bang 1 this
-       collapses to the original resting formula. */
-    .smc-node {
-      position: absolute;
-      /* the pattern expands with the tile: 86% spread at rest, 100% at full
-         bleed, riding the same --expand the card scrub writes. --bang folds the
-         detonation in front of that: 0 puts every label on the centre point. */
-      left: calc(50% + (var(--nx) - 50%) * var(--bang, 1) * (0.86 + 0.14 * var(--expand, 1)));
-      top: calc(46% + (var(--ny) - 46%) * var(--bang, 1) * (0.86 + 0.14 * var(--expand, 1)));
-      transform: translate(-50%, -50%);
-      display: flex; flex-direction: column; align-items: center; gap: 7px;
-      padding: 10px 8px;
-      /* named stars — no box: the glyph glows like a bright point in the
-         field with the label floating beneath, so the links read as part of
-         the constellation instead of cards laid over it */
-      text-decoration: none;
-    }
-    .smc-glyph { position: relative; display: block; width: 22px; height: 22px; }
-    /* soft halo behind the glyph — the "bright star" the label names */
-    .smc-glyph::before {
-      content: ""; position: absolute; left: 50%; top: 50%;
-      width: 54px; height: 54px; transform: translate(-50%, -50%);
-      border-radius: 50%;
-      background: radial-gradient(circle,
-        rgba(250, 249, 245, 0.20) 0%,
-        rgba(250, 249, 245, 0.06) 45%,
-        rgba(250, 249, 245, 0) 70%);
-    }
-    .smc-glyph svg { display: block; width: 100%; height: 100%; }
-    .smc-lbl {
-      /* relative so the label paints above the positioned asterism svg */
-      position: relative;
-      font-family: var(--mono); font-size: 9px; font-weight: 500; white-space: nowrap;
-      letter-spacing: 0.1em; text-transform: uppercase;
-      /* !important or the body-wide recolor rule paints it navy-on-navy */
-      color: rgba(250, 249, 245, 0.95) !important;
-    }
-  }
-  @media (max-width: 640px) and (prefers-reduced-motion: reduce), (max-width: 985px) and (pointer: coarse) and (prefers-reduced-motion: reduce) {
-    /* no scrub: the resting state is the inset rounded tile, full pattern */
-    .smc { --expand: 0 !important; }
-    .smc-node { left: var(--nx); top: var(--ny); }
+  /* ── PHONE LAYOUT (≤640px, the shell's one phone value): the four showcase
+     cards stack one per row and run touch-first — whole-tile taps open the
+     cert/firework modals (the Expand buttons rest at 0.55 opacity, so they
+     read without hover). The navy constellation tile that stood in for the
+     cards on phones, plus its starfield/big-bang JS, was retired 2026-08-26;
+     git history is the archive. ── */
+  @media (max-width: 640px) {
+    .sc-grid { grid-template-columns: 1fr; grid-auto-rows: auto; gap: 22px; }
+    /* firework: taller stage + a smaller burst so the fixed 92-158px spark
+       reach clears the narrow card (scale rides the WRAPPER — the scene's
+       orbit animation owns the scene transform; labels stay true because the
+       expanded view positions them from measured dot rects, not constants) */
+    #sc-fw #fw-showcase:not(.is-expanded) { aspect-ratio: 1.5/1; }
+    .fw3d { transform: scale(0.78); }
+    /* expanded firework, phone: labels collapse to ID-only chips (the full
+       names would run off the narrow modal; they stay in the accessibility
+       tree and the tap-open detail panel shows them), and the detail panel
+       spans the modal instead of hugging the left corner */
+    #fw-showcase.is-expanded .fw3d-lbl { padding: 6px 9px; }
+    #fw-showcase.is-expanded .fw3d-lbl .l-id { margin-right: 0; }
+    #fw-showcase.is-expanded .fw3d-lbl .l-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .fw3d-detail { left: 14px; right: 14px; bottom: 14px; width: auto; }
   }
 </style>
 </head>
@@ -1792,7 +1701,6 @@
 <main id="main" tabindex="-1">
 
 
-
 <!-- SHOWCASE CARDS — the mark + the framework as dark-panel cards (xAI grid,
      Anthropic color). Scoped styles + click handler live in the HOME-ONLY block
      / the inline script near </body>. -->
@@ -1808,43 +1716,6 @@
       </div>
     </div>
   </div><!-- /.sc-inner : hero stays in the centered column -->
-  <!-- MOBILE CONSTELLATION TILE (phones ≤640px) — the four showcase cards fold
-       into one navy tile holding the drifting starfield; it scroll-expands to
-       full bleed. Decorative for now (aria-hidden). Styles live in the
-       HOME-ONLY block; the field generator + scrub in the inline script near
-       </body>. Hidden entirely on desktop. -->
-  <div class="sc-inner smc-wrap">
-    <div class="smc" id="smc" role="group" aria-label="Explore Safety Critical Labs">
-      <div class="smc-card" id="smc-card">
-        <svg class="smc-stars" id="smc-stars" viewBox="0 0 420 600" preserveAspectRatio="none" aria-hidden="true"></svg>
-        <div class="smc-bloom" id="smc-bloom" aria-hidden="true"></div>
-        <a class="smc-node" style="--nx:40.1%; --ny:55.9%" href="/certificate-template">
-          <svg class="smc-cst" viewBox="-75 -75 150 150" aria-hidden="true"><line x1="-13" y1="10" x2="-38" y2="34"/><line x1="-38" y1="34" x2="-58" y2="52"/><line x1="-38" y1="34" x2="-14" y2="56"/><circle cx="-38" cy="34" r="1.7" opacity="0.55"/><circle cx="-58" cy="52" r="1.1" opacity="0.38"/><circle cx="-14" cy="56" r="1.3" opacity="0.42"/></svg>
-          <span class="smc-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#FAF9F5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="5"/><circle cx="12" cy="9" r="1.6" fill="#FAF9F5" stroke="none"/><path d="M9.2 13.4 8.2 20l3.8-2.1 3.8 2.1-1-6.6"/></svg></span><span class="smc-lbl">Certificate</span>
-        </a>
-        <a class="smc-node" style="--nx:50.8%; --ny:27%" href="/framework">
-          <svg class="smc-cst" viewBox="-75 -75 150 150" aria-hidden="true"><line x1="-14" y1="-9" x2="-34" y2="-24"/><line x1="-34" y1="-24" x2="-58" y2="-8"/><line x1="-34" y1="-24" x2="-24" y2="-46"/><circle cx="-34" cy="-24" r="1.8" opacity="0.55"/><circle cx="-58" cy="-8" r="1.2" opacity="0.38"/><circle cx="-24" cy="-46" r="1.2" opacity="0.40"/></svg>
-          <span class="smc-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#FAF9F5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg></span><span class="smc-lbl">Framework</span>
-        </a>
-        <a class="smc-node" style="--nx:65.4%; --ny:64.4%" href="/process">
-          <svg class="smc-cst" viewBox="-75 -75 150 150" aria-hidden="true"><line x1="13" y1="5" x2="36" y2="12"/><line x1="36" y1="12" x2="58" y2="26"/><circle cx="36" cy="12" r="1.6" opacity="0.50"/><circle cx="58" cy="26" r="1.2" opacity="0.38"/><circle cx="18" cy="46" r="1.0" opacity="0.32"/></svg>
-          <span class="smc-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#FAF9F5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="4.6" cy="12" r="2.1"/><circle cx="12" cy="12" r="2.1"/><circle cx="19.4" cy="12" r="2.1"/><path d="M6.7 12h3.2M14.1 12h3.2"/></svg></span><span class="smc-lbl">Process</span>
-        </a>
-        <a class="smc-node" style="--nx:21.2%; --ny:42.2%" href="/verify">
-          <svg class="smc-cst" viewBox="-75 -75 150 150" aria-hidden="true"><line x1="-16" y1="9" x2="-30" y2="20"/><line x1="-30" y1="20" x2="-46" y2="40"/><line x1="-30" y1="20" x2="-18" y2="48"/><circle cx="-30" cy="20" r="1.8" opacity="0.55"/><circle cx="-46" cy="40" r="1.2" opacity="0.38"/><circle cx="-18" cy="48" r="1.1" opacity="0.38"/></svg>
-          <span class="smc-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#FAF9F5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6l6.8 2.7v5c0 4.4-2.9 7.3-6.8 8.7-3.9-1.4-6.8-4.3-6.8-8.7v-5z"/><path d="M9 12l2.2 2.2 3.9-4.4"/></svg></span><span class="smc-lbl">Verify</span>
-        </a>
-        <a class="smc-node" style="--nx:77.9%; --ny:26.5%" href="/search">
-          <svg class="smc-cst" viewBox="-75 -75 150 150" aria-hidden="true"><line x1="15" y1="0" x2="38" y2="20"/><line x1="38" y1="20" x2="22" y2="50"/><circle cx="38" cy="20" r="1.7" opacity="0.50"/><circle cx="22" cy="50" r="1.2" opacity="0.40"/><circle cx="46" cy="42" r="1.1" opacity="0.35"/></svg>
-          <span class="smc-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#FAF9F5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 7.2c0-1.5 1.2-2.7 2.7-2.7h9.6c1.5 0 2.7 1.2 2.7 2.7v5.6c0 1.5-1.2 2.7-2.7 2.7h-6.9l-4 3.3c-.6.5-1.4 0-1.4-.7z"/><path d="M10.5 8c.3-1 1.2-1.6 2.3-1.5 1 .2 1.7 1 1.6 2-.1 1.2-1.4 1.4-1.9 2.3"/><circle cx="12.3" cy="12.6" r="0.9" fill="#FAF9F5" stroke="none"/></svg></span><span class="smc-lbl">Questions</span>
-        </a>
-        <a class="smc-node" style="--nx:41.5%; --ny:84.1%" href="/subscribe">
-          <svg class="smc-cst" viewBox="-75 -75 150 150" aria-hidden="true"><line x1="-13" y1="-9" x2="-30" y2="-24"/><line x1="13" y1="-9" x2="30" y2="-24"/><line x1="30" y1="-24" x2="4" y2="-52"/><circle cx="-30" cy="-24" r="1.5" opacity="0.48"/><circle cx="30" cy="-24" r="1.5" opacity="0.48"/><circle cx="4" cy="-52" r="1.1" opacity="0.36"/></svg>
-          <span class="smc-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#FAF9F5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5.5" width="17" height="13" rx="2.2"/><path d="M4.6 7.2 12 12.6l7.4-5.4"/></svg></span><span class="smc-lbl">Subscribe</span>
-        </a>
-      </div>
-    </div>
-  </div>
   <!-- Cards break out of the centered container to span the full page width. -->
   <div class="sc-grid sc-grid-wide">
       <div class="sc-card" id="sc-cert">
@@ -2118,7 +1989,6 @@
       </div>
     </div><!-- /.sc-grid-wide -->
 </section>
-
 
 
 <!-- LATEST NEWS -->
@@ -3821,9 +3691,13 @@
     }
     for (var j = 0; j < sparks.length; j++) {
       var x = pos[j][0], y = pos[j][1], dx = x - cx, dy = y - cy, len = Math.sqrt(dx * dx + dy * dy) || 1;
-      var s = sparks[j].label.style;
-      s.left = (x + dx / len * 26) + 'px';
-      s.top = (y + dy / len * 26) + 'px';
+      var el = sparks[j].label, s = el.style;
+      /* clamp the chip fully inside the modal — at phone widths the outer
+         dots (wobble + perspective) can push a label past the edge; a no-op
+         on desktop where the 900px modal was sized for the full names */
+      var hw = el.offsetWidth / 2 + 6, hh = el.offsetHeight / 2 + 6;
+      s.left = Math.max(hw, Math.min(host.width - hw, x + dx / len * 26)) + 'px';
+      s.top = Math.max(hh, Math.min(host.height - hh, y + dy / len * 26)) + 'px';
     }
   }
   function tick() {
@@ -3862,427 +3736,6 @@
 })();
 </script>
 
-<!-- MOBILE CONSTELLATION TILE — phone-only navy card with a living starfield:
-     2-nearest-neighbour clusters + solo stars + a few 4-point sparkles, slow
-     per-star twinkle, depth-scaled drift with scroll parallax, occasional
-     meteors, and per-node asterisms around the six named stars; scroll-
-     scrubbed expand to full bleed. Built lazily on first entry into ≤640px so
-     desktop never pays for it; the loop pauses off-screen and everything but
-     the static field is skipped under reduced motion. -->
-<script>
-(function () {
-  var panel = document.getElementById('smc');
-  var svg = document.getElementById('smc-stars');
-  if (!panel || !svg) return;
-
-  var mq = window.matchMedia('(max-width: 640px), (max-width: 985px) and (pointer: coarse)');
-  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
-  var SVG_NS = 'http://www.w3.org/2000/svg';
-  var W = 420, H = 600;
-  var built = false, running = false, visible = false;
-  var clusters = [], solos = [], tiles = [], field = null;
-  var bloom = document.getElementById('smc-bloom');
-  var twinkles = [];                     /* per-star shimmer specs */
-  var meteorEl = null, meteorSpec = null, nextMeteor = 0;
-  var para = 0;                          /* scroll-parallax input, -1..1 (set in scrub) */
-  var PARA_K = 30;                       /* max vertical depth spread, viewBox units */
-
-  /* ── Big-bang timeline (fires ONCE, the first time the tile scrolls into
-     view; never re-detonates). --bang runs 0..1 over BANG_MS; the
-     constellation starts collapsed on the centre point (CX/CY, matching the
-     labels' 50%/46% and the bloom) and blows out to rest. STAGGER lags the
-     outer labels behind the inner ones so it reads as an expanding front, and
-     backOut() gives a small overshoot + settle. Tile geometry is untouched. ── */
-  var CX = W * 0.5, CY = H * 0.46;
-  var BANG_MS = 1050, STAGGER = 0.28, ARM_RATIO = 0.5;
-  var bangArmed = false, bangDone = false, bangStart = 0, bangVal = 0;
-  function clamp01(v){ return v < 0 ? 0 : v > 1 ? 1 : v; }
-  function backOut(t){ if (t <= 0) return 0; var c1 = 1.32, c3 = c1 + 1, u = t - 1; return 1 + c3 * u * u * u + c1 * u * u; }
-
-  /* slow opacity shimmer — a handful of stars pulse visibly (higher amp),
-     the rest barely breathe. Consumed each frame in tick(). Amp is clamped
-     below base so the dimmest stars bottom out faint, never at negative
-     (browser-clamped-to-zero) opacity. */
-  function addTwinkle(el, base, amp) {
-    twinkles.push({ el: el, base: base, amp: Math.min(amp, Math.max(0.01, base - 0.02)),
-      sp: 0.0006 + Math.random() * 0.0014, ph: Math.random() * Math.PI * 2 });
-  }
-
-  /* ── Starfield: small triangulated clusters + solos, Lissajous drift only
-     (no cursor pull — the panel is touch-first). ── */
-  function buildField() {
-    var CLUSTER_COUNT = 4, SOLO_COUNT = 22, REACH = 40;
-    /* the labels drift free like the clusters — same Lissajous family,
-       composed over the centering translate; no tethers, no figure */
-    var avoid = [], nodeEls = panel.querySelectorAll('.smc-node'), maxD = 0.0001;
-    /* first pass: resting distance from centre (in --nx/--ny % space) so the
-       big-bang can lag outer labels behind inner ones (rNorm 0..1). */
-    Array.prototype.forEach.call(nodeEls, function (n) {
-      var nx = parseFloat(n.style.getPropertyValue('--nx'));
-      var ny = parseFloat(n.style.getPropertyValue('--ny'));
-      var d = Math.sqrt((nx - 50) * (nx - 50) + (ny - 46) * (ny - 46));
-      if (d > maxD) maxD = d;
-      n._smcD = d;
-      avoid.push({ x: nx / 100 * W, y: ny / 100 * H });
-    });
-    Array.prototype.forEach.call(nodeEls, function (n) {
-      tiles.push({
-        el: n, rNorm: n._smcD / maxD,
-        ampX: 4 + Math.random() * 4, ampY: 4 + Math.random() * 4,
-        spX: 0.0002 + Math.random() * 0.0003, spY: 0.0002 + Math.random() * 0.0003,
-        phX: Math.random() * Math.PI * 2, phY: Math.random() * Math.PI * 2
-      });
-    });
-    /* one wrapper group holds every star so the whole field can be scaled from
-       the centre point (CX/CY) during the bang — the mesh rushes outward from
-       the core, then the per-cluster drift takes back over. */
-    field = document.createElementNS(SVG_NS, 'g');
-    field.setAttribute('id', 'smc-field');
-    /* clusters spawn clear of the labels: label footprint + cluster reach +
-       drift, in viewBox units. Solo specks may still land behind a label
-       (that reads as sky), but a mesh figure crossing one reads as mess */
-    function clearOfLabels(x, y) {
-      for (var i = 0; i < avoid.length; i++) {
-        if (Math.abs(x - avoid[i].x) < 105 && Math.abs(y - avoid[i].y) < 90) return false;
-      }
-      return true;
-    }
-    for (var ci = 0; ci < CLUSTER_COUNT; ci++) {
-      var cx, cy, tries = 0;
-      do {
-        cx = 40 + Math.random() * (W - 80);
-        cy = 30 + Math.random() * (H - 60);
-      } while (!clearOfLabels(cx, cy) && ++tries < 40);
-      var starCount = 4 + Math.floor(Math.random() * 3);
-      var stars = [];
-      for (var si = 0; si < starCount; si++) {
-        var angle = (si / starCount) * Math.PI * 2 + (Math.random() - 0.5) * 1.4;
-        var r = REACH * (0.35 + Math.random() * 0.65);
-        var prominent = Math.random() < 0.2;
-        stars.push({
-          x: cx + Math.cos(angle) * r + (Math.random() - 0.5) * 8,
-          y: cy + Math.sin(angle) * r + (Math.random() - 0.5) * 8,
-          baseR: prominent ? 1.5 + Math.random() * 0.9 : 0.5 + Math.random() * 0.7,
-          depth: Math.random(), prominent: prominent
-        });
-      }
-      var g = document.createElementNS(SVG_NS, 'g');
-      /* 2-nearest-neighbour mesh, deduped — the triangulated old-hero look */
-      var edges = {};
-      for (var i = 0; i < stars.length; i++) {
-        var near = [];
-        for (var j = 0; j < stars.length; j++) {
-          if (j === i) continue;
-          var ddx = stars[j].x - stars[i].x, ddy = stars[j].y - stars[i].y;
-          near.push({ idx: j, d: ddx * ddx + ddy * ddy });
-        }
-        near.sort(function (a, b) { return a.d - b.d; });
-        for (var k = 0; k < 2 && k < near.length; k++) {
-          edges[i < near[k].idx ? i + '-' + near[k].idx : near[k].idx + '-' + i] = true;
-        }
-      }
-      Object.keys(edges).forEach(function (key) {
-        var p = key.split('-');
-        var a = stars[+p[0]], b = stars[+p[1]];
-        var line = document.createElementNS(SVG_NS, 'line');
-        line.setAttribute('x1', a.x); line.setAttribute('y1', a.y);
-        line.setAttribute('x2', b.x); line.setAttribute('y2', b.y);
-        line.setAttribute('class', 'smc-line');
-        g.appendChild(line);
-      });
-      stars.forEach(function (s) {
-        var c = document.createElementNS(SVG_NS, 'circle');
-        c.setAttribute('cx', s.x); c.setAttribute('cy', s.y);
-        c.setAttribute('r', s.baseR);
-        c.setAttribute('class', 'smc-star');
-        var base = (s.prominent ? 0.30 : 0.13) + s.depth * 0.18;
-        c.style.opacity = base;
-        g.appendChild(c);
-        addTwinkle(c, base, s.prominent ? 0.10 + Math.random() * 0.10
-                                        : Math.random() < 0.35 ? 0.05 + Math.random() * 0.07
-                                                               : 0.015 + Math.random() * 0.025);
-      });
-      field.appendChild(g);
-      /* per-cluster depth: scales drift (near = livelier) and feeds the
-         scroll parallax in tick() */
-      var cdep = Math.random();
-      clusters.push({
-        g: g, depth: cdep,
-        ampX: (3 + Math.random() * 5) * (0.55 + 0.7 * cdep),
-        ampY: (3 + Math.random() * 5) * (0.55 + 0.7 * cdep),
-        spX: 0.00022 + Math.random() * 0.00038, spY: 0.00022 + Math.random() * 0.00038,
-        phX: Math.random() * Math.PI * 2, phY: Math.random() * Math.PI * 2
-      });
-    }
-    for (var s2 = 0; s2 < SOLO_COUNT; s2++) {
-      var x = 20 + Math.random() * (W - 40);
-      var y = 20 + Math.random() * (H - 40);
-      var depth = Math.random();
-      var prom = Math.random() < 0.12;
-      var el = document.createElementNS(SVG_NS, 'circle');
-      el.setAttribute('cx', x); el.setAttribute('cy', y);
-      el.setAttribute('r', prom ? 1.4 + Math.random() * 0.8 : 0.4 + Math.random() * 0.7);
-      el.setAttribute('class', 'smc-star');
-      var sbase = (prom ? 0.30 : 0.10) + depth * 0.14;
-      el.style.opacity = sbase;
-      field.appendChild(el);
-      solos.push({
-        el: el, depth: depth,
-        ampX: (2 + Math.random() * 4) * (0.55 + 0.7 * depth),
-        ampY: (2 + Math.random() * 4) * (0.55 + 0.7 * depth),
-        spX: 0.00018 + Math.random() * 0.00032, spY: 0.00018 + Math.random() * 0.00032,
-        phX: Math.random() * Math.PI * 2, phY: Math.random() * Math.PI * 2
-      });
-      addTwinkle(el, sbase, prom ? 0.10 + Math.random() * 0.10
-                                 : Math.random() < 0.35 ? 0.05 + Math.random() * 0.07
-                                                        : 0.015 + Math.random() * 0.025);
-    }
-    /* alpha-star sparkles — a few 4-point glints (the orb's sparkle glyph)
-       scattered among the solos. The viewBox stretches non-uniformly
-       (preserveAspectRatio none), so x-offsets are pre-divided by the card's
-       aspect factor to keep the points looking square on screen. Foreground
-       depth + a bigger twinkle amp so they read as glinting. */
-    var srect = svg.getBoundingClientRect();
-    var ax = (srect.width > 4 && srect.height > 4) ? (srect.width / W) / (srect.height / H) : 1;
-    for (var sk = 0; sk < 3; sk++) {
-      var kx, ky, ktries = 0;
-      do {
-        kx = 34 + Math.random() * (W - 68);
-        ky = 30 + Math.random() * (H - 60);
-      } while (!clearOfLabels(kx, ky) && ++ktries < 40);
-      var ks = 3.2 + Math.random() * 1.4, ki = ks * 0.3;
-      var kp = document.createElementNS(SVG_NS, 'path');
-      kp.setAttribute('d',
-        'M ' + kx + ',' + (ky - ks) +
-        ' L ' + (kx + ki / ax) + ',' + (ky - ki) +
-        ' L ' + (kx + ks / ax) + ',' + ky +
-        ' L ' + (kx + ki / ax) + ',' + (ky + ki) +
-        ' L ' + kx + ',' + (ky + ks) +
-        ' L ' + (kx - ki / ax) + ',' + (ky + ki) +
-        ' L ' + (kx - ks / ax) + ',' + ky +
-        ' L ' + (kx - ki / ax) + ',' + (ky - ki) + ' Z');
-      kp.setAttribute('class', 'smc-star');
-      var kdep = 0.7 + Math.random() * 0.3;
-      var kbase = 0.42 + Math.random() * 0.12;
-      kp.style.opacity = kbase;
-      field.appendChild(kp);
-      solos.push({
-        el: kp, depth: kdep,
-        ampX: (2 + Math.random() * 4) * (0.55 + 0.7 * kdep),
-        ampY: (2 + Math.random() * 4) * (0.55 + 0.7 * kdep),
-        spX: 0.00018 + Math.random() * 0.00032, spY: 0.00018 + Math.random() * 0.00032,
-        phX: Math.random() * Math.PI * 2, phY: Math.random() * Math.PI * 2
-      });
-      addTwinkle(kp, kbase, 0.16 + Math.random() * 0.14);
-    }
-    svg.appendChild(field);
-  }
-
-  /* ── Big-bang helpers ─────────────────────────────────────────────────
-     applyBang(v): paint the whole constellation at timeline value v (0..1),
-     driftX/driftY optional pixel drift (0 when collapsed / off-screen). Every
-     frame routes through here so drift and detonation share one code path. */
-  function applyBang(v, now) {
-    var i, o, e, local, gate, dx, dy, sc;
-    /* labels: per-node lag + overshoot; --bang scales their offset from centre,
-       scale grows the box, opacity fades them in, drift gated by local. */
-    for (i = 0; i < tiles.length; i++) {
-      o = tiles[i];
-      local = clamp01((v - o.rNorm * STAGGER) / (1 - STAGGER));
-      gate = local;
-      e = backOut(local);
-      dx = now ? Math.sin(now * o.spX + o.phX) * o.ampX * gate : 0;
-      dy = now ? Math.sin(now * o.spY + o.phY) * o.ampY * gate : 0;
-      sc = 0.16 + 0.84 * e;
-      o.el.style.setProperty('--bang', e.toFixed(4));
-      o.el.style.opacity = Math.min(1, gate * 1.5).toFixed(3);
-      o.el.style.transform = 'translate(' + dx.toFixed(2) + 'px,' + dy.toFixed(2) + 'px) translate(-50%,-50%) scale(' + sc.toFixed(3) + ')';
-    }
-    /* starfield: one group scaled from the core (0.06 collapsed → 1 at rest,
-       small overshoot) and faded in as a whole. */
-    if (field) {
-      var fs = 0.06 + 0.94 * backOut(clamp01(v));
-      field.setAttribute('transform', 'translate(' + CX + ' ' + CY + ') scale(' + fs.toFixed(3) + ') translate(' + (-CX) + ' ' + (-CY) + ')');
-      field.style.opacity = Math.min(1, v * 1.4).toFixed(3);
-    }
-    /* ignition bloom: quick flash up front (peak near v≈0.12), fades by ~0.6. */
-    if (bloom) {
-      var bk = v < 0.12 ? v / 0.12 : Math.max(0, 1 - (v - 0.12) / 0.5);
-      bloom.style.opacity = (bk * 0.85).toFixed(3);
-      bloom.style.transform = 'translate(-50%,-50%) scale(' + (0.4 + v * 1.7).toFixed(3) + ')';
-    }
-  }
-
-  function armBang() {
-    if (reduce.matches || !built) return;
-    if (bangArmed) return;                // one-shot — arms once, never restarts
-    bangArmed = true; bangDone = false; bangStart = 0; bangVal = 0;
-  }
-
-  /* ── Meteors — an occasional brief streak across the sky, post-bang only,
-     one at a time. The head races ahead (easeOut) with the tail lagging, so
-     the streak stretches then contracts; opacity is a sine in/out. Runs only
-     inside tick(), so it pauses off-screen and never fires under reduced
-     motion. Passes behind the labels (SVG sits under the HTML nodes). ── */
-  function spawnMeteor(now) {
-    var fromLeft = Math.random() < 0.5;
-    var x0 = fromLeft ? 20 + Math.random() * 120 : W - 20 - Math.random() * 120;
-    var y0 = 20 + Math.random() * (H * 0.36);
-    var len = 110 + Math.random() * 70;
-    var ang = 0.30 + Math.random() * 0.25;      /* ~17–31° below horizontal */
-    meteorSpec = {
-      x0: x0, y0: y0,
-      dx: Math.cos(ang) * len * (fromLeft ? 1 : -1),
-      dy: Math.sin(ang) * len,
-      t0: now, dur: 620 + Math.random() * 240
-    };
-    meteorEl = document.createElementNS(SVG_NS, 'line');
-    meteorEl.setAttribute('stroke', '#FAF9F5');
-    meteorEl.setAttribute('stroke-width', '1.1');
-    meteorEl.setAttribute('stroke-linecap', 'round');
-    meteorEl.style.opacity = '0';
-    svg.appendChild(meteorEl);
-  }
-  function stepMeteor(now) {
-    var t = (now - meteorSpec.t0) / meteorSpec.dur;
-    if (t >= 1) {
-      svg.removeChild(meteorEl); meteorEl = null;
-      nextMeteor = now + 8000 + Math.random() * 6000;
-      return;
-    }
-    var head = 1 - (1 - t) * (1 - t);
-    var tl = Math.max(0, t - 0.30);
-    var tail = 1 - (1 - tl) * (1 - tl);
-    meteorEl.setAttribute('x1', (meteorSpec.x0 + meteorSpec.dx * tail).toFixed(1));
-    meteorEl.setAttribute('y1', (meteorSpec.y0 + meteorSpec.dy * tail).toFixed(1));
-    meteorEl.setAttribute('x2', (meteorSpec.x0 + meteorSpec.dx * head).toFixed(1));
-    meteorEl.setAttribute('y2', (meteorSpec.y0 + meteorSpec.dy * head).toFixed(1));
-    meteorEl.style.opacity = (Math.sin(Math.PI * t) * 0.7).toFixed(3);
-  }
-
-  function tick(now) {
-    if (!running) return;
-    var i, o, dx, dy;
-    /* advance the big-bang timeline (once per arm) */
-    if (bangArmed && !bangDone) {
-      if (!bangStart) bangStart = now;
-      bangVal = (now - bangStart) / BANG_MS;
-      if (bangVal >= 1) { bangVal = 1; bangDone = true; }
-    }
-    /* star drift + scroll parallax by depth, gated so the mesh doesn't
-       jitter while collapsed. Mid-depth stays put; near layers shift one
-       way, far layers the other, so the sky gains depth as you scroll. */
-    var sgate = clamp01(bangVal);
-    var pk = para * PARA_K * sgate;
-    for (i = 0; i < clusters.length; i++) {
-      o = clusters[i];
-      dx = Math.sin(now * o.spX + o.phX) * o.ampX * sgate;
-      dy = Math.sin(now * o.spY + o.phY) * o.ampY * sgate + pk * (o.depth - 0.5);
-      o.g.setAttribute('transform', 'translate(' + dx.toFixed(2) + ' ' + dy.toFixed(2) + ')');
-    }
-    for (i = 0; i < solos.length; i++) {
-      o = solos[i];
-      dx = Math.sin(now * o.spX + o.phX) * o.ampX * sgate;
-      dy = Math.sin(now * o.spY + o.phY) * o.ampY * sgate + pk * (o.depth - 0.5);
-      o.el.setAttribute('transform', 'translate(' + dx.toFixed(2) + ' ' + dy.toFixed(2) + ')');
-    }
-    /* twinkle — the field-level fade during the bang still multiplies in;
-       skipped entirely while the field is invisible pre-bang (sgate 0) so a
-       tile parked below the arm threshold doesn't animate transparent stars */
-    if (sgate > 0) {
-      for (i = 0; i < twinkles.length; i++) {
-        o = twinkles[i];
-        o.el.style.opacity = (o.base + Math.sin(now * o.sp + o.ph) * o.amp).toFixed(3);
-      }
-    }
-    /* labels + field wrapper + bloom, all off the current timeline value */
-    applyBang(bangVal, now);
-    /* meteors — post-bang, one at a time, 8–14s apart */
-    if (bangDone) {
-      if (!nextMeteor) nextMeteor = now + 4000 + Math.random() * 5000;
-      if (!meteorEl && now >= nextMeteor) spawnMeteor(now);
-      if (meteorEl) stepMeteor(now);
-    }
-    requestAnimationFrame(tick);
-  }
-
-  function setRunning(on) {
-    on = !!on && built && !reduce.matches;
-    if (on === running) return;
-    running = on;
-    if (on) requestAnimationFrame(tick);
-  }
-
-  /* display:none (desktop) reports not-intersecting, so this doubles as the
-     desktop off-switch after a viewport resize back up. Two gates off one
-     observer: ANY sliver on screen (ratio > 0) runs the drift loop, but the
-     big-bang ARMS ONCE — the first time the tile is genuinely in view
-     (ratio ≥ ARM_RATIO) — so it sits blank as you approach, detonates from the
-     core as you scroll onto it, then stays put. It never re-detonates. */
-  var bangFired = false;
-  new IntersectionObserver(function (entries) {
-    /* newest record — a batched [enter, exit] delivery must not latch
-       visible=true and leave the loop running off-screen */
-    var e = entries[entries.length - 1];
-    visible = e.isIntersecting;
-    setRunning(visible);
-    if (!bangFired && visible && e.intersectionRatio >= ARM_RATIO) {
-      bangFired = true;
-      armBang();
-    }
-  }, { threshold: [0, ARM_RATIO] }).observe(panel);
-
-  function ensureBuilt() {
-    if (built || !mq.matches) return;
-    built = true;
-    buildField();
-    /* start collapsed/blank; the observer arms the detonation once the tile is
-       scrolled into view (skip under reduced motion — the field just renders at
-       rest). */
-    if (!reduce.matches) applyBang(0, 0);
-    setRunning(visible);
-  }
-  if (mq.addEventListener) mq.addEventListener('change', ensureBuilt);
-  else mq.addListener(ensureBuilt);
-  /* resize fallback — some embedded webviews miss matchMedia change events */
-  var rzT;
-  window.addEventListener('resize', function () {
-    clearTimeout(rzT);
-    rzT = setTimeout(function () { ensureBuilt(); scrub(); }, 200);
-  }, { passive: true });
-  ensureBuilt();
-
-  /* ── Scroll-scrubbed expand: the desktop cards widen on scroll; the one
-     navy tile that replaces them grows from an inset rounded card to a
-     full-bleed band as it scrolls in (both directions, passive rAF-throttled,
-     same pattern as the desktop scrub). --edge is the live distance from the
-     panel to the viewport edge, so full bleed lands exactly edge-to-edge. ── */
-  var scrubT = false;
-  function scrub() {
-    scrubT = false;
-    if (!mq.matches || reduce.matches) {
-      panel.style.removeProperty('--expand');
-      panel.style.removeProperty('--edge');
-      return;
-    }
-    var r = panel.getBoundingClientRect();
-    var vh = window.innerHeight || 1;
-    var p = (vh - r.top) / (vh * 0.8);   /* 0 at viewport bottom → 1 at 20% from top */
-    p = p < 0 ? 0 : p > 1 ? 1 : p;
-    p = p * p * (3 - 2 * p);             /* smoothstep */
-    panel.style.setProperty('--edge', r.left.toFixed(1) + 'px');
-    panel.style.setProperty('--expand', p.toFixed(4));
-    /* scroll-parallax input for the starfield depth layers: card centre vs
-       viewport centre, -1..1; consumed each frame in tick() */
-    var mid = r.top + r.height / 2;
-    para = Math.max(-1, Math.min(1, (mid - vh / 2) / (vh * 0.75)));
-  }
-  window.addEventListener('scroll', function () {
-    if (!scrubT) { scrubT = true; requestAnimationFrame(scrub); }
-  }, { passive: true });
-  scrub();
-})();
-</script>
 
 <!-- Cards: scroll-SCRUBBED widen. The grid width tracks scroll position via
      --expand (0..1) so the cards visibly expand out as you scroll (and narrow on
