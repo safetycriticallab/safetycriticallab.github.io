@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-24",
+  "updated": "2026-08-28",
   "note": "Question library for the Ask SCL page (search.html) and the ask worker grounding corpus (ask-worker.js). Single source of truth. Keep answers factual and do not overstate SCL's status.",
   "entries": [
     {
@@ -418,6 +418,120 @@
         "language"
       ],
       "link": "/search"
+    },
+    {
+      "q": "What does an SCL certificate not say?",
+      "a": "A certificate records that a system met the framework's applicable requirements at the time of assessment. It does not say the system is safe, that it will not fail, or that it is approved for any regulatory purpose. It is not a regulator's clearance and does not move operator responsibility to SCL.",
+      "keywords": [
+        "not",
+        "does not",
+        "guarantee",
+        "safe",
+        "liability",
+        "protect",
+        "shield",
+        "court",
+        "responsibility",
+        "regulatory",
+        "approval",
+        "limits",
+        "disclaimer",
+        "mean",
+        "sue"
+      ],
+      "link": "/disclaimer"
+    },
+    {
+      "q": "How does DO-178C decide how much rigor software needs?",
+      "a": "DO-178C does not run the safety assessment that sets its rigor. The aircraft level assessment does, through the methods of ARP4761/A and the assurance level assignment of ARP4754A/B, and the resulting software level reaches the software life cycle as an input. That level then selects which Annex A objectives apply. SCL's gate answers a narrower question, whether behavior rests on a learned artifact, so criticality still comes from your own domain's process.",
+      "keywords": [
+        "do-178c",
+        "178",
+        "rigor",
+        "level",
+        "levels",
+        "dal",
+        "arp4754",
+        "arp4761",
+        "objectives",
+        "assurance",
+        "aviation",
+        "compare"
+      ],
+      "link": "/framework"
+    },
+    {
+      "q": "Why does the framework have thirteen requirement areas?",
+      "a": "The count follows from failure modes, not from a target number. Each area exists because a class of AI failure has already happened in the field, and the set grows as new classes are recognized. Ten core areas cover failures any AI system can exhibit. Three more apply only to systems that use multiple models, neural networks, or post-deployment learning.",
+      "keywords": [
+        "thirteen",
+        "13",
+        "count",
+        "many",
+        "number",
+        "why",
+        "areas",
+        "tiers",
+        "two",
+        "conditional",
+        "core",
+        "arbitrary"
+      ],
+      "link": "/framework"
+    },
+    {
+      "q": "What is a readiness assessment?",
+      "a": "A readiness assessment tells you where you stand against the framework before committing to a full certification cycle. It identifies gaps without producing a formal determination, so it is not a certification and does not grant the mark. The version on the site is an indicator, not a formal risk score.",
+      "keywords": [
+        "readiness",
+        "assessment",
+        "gap",
+        "gaps",
+        "before",
+        "prepare",
+        "ready",
+        "pre",
+        "check",
+        "score",
+        "self"
+      ],
+      "link": "/assess"
+    },
+    {
+      "q": "What happens after we are certified?",
+      "a": "Certification is not a one time event. Safety Critical systems carry an annual surveillance audit and Mission Critical systems a biennial one. Reassessment is triggered by a model version change, a significant environment change, a drift threshold breach, or an incident involving an AI assisted decision. The validity period is scoped per engagement.",
+      "keywords": [
+        "after",
+        "surveillance",
+        "audit",
+        "recertification",
+        "renew",
+        "expire",
+        "valid",
+        "validity",
+        "annual",
+        "reassessment",
+        "maintain"
+      ],
+      "link": "/process"
+    },
+    {
+      "q": "How is our proprietary information protected during an assessment?",
+      "a": "Confidentiality terms are set in the written engagement agreement that governs each assessment, so they are agreed before any evidence changes hands. SCL retains assessment documentation for at least ten years or the life of the certified system, available for regulatory review. Contact SCL for the terms that would apply.",
+      "keywords": [
+        "confidential",
+        "confidentiality",
+        "nda",
+        "proprietary",
+        "protected",
+        "data",
+        "ip",
+        "secret",
+        "retention",
+        "records",
+        "agreement"
+      ],
+      "link": "/contact"
     }
   ]
 }
