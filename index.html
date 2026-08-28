@@ -1602,6 +1602,32 @@
      git history is the archive. ── */
   @media (max-width: 640px) {
     .sc-grid { grid-template-columns: 1fr; grid-auto-rows: auto; gap: 22px; }
+    /* Per-tile scroll-scrubbed SPREAD, the phone counterpart of the desktop
+       .sc-grid-wide --expand effect (which line 1083 caps out below 1360px).
+       Stacked tiles carry the same orientation as the desktop grid, so each
+       runs its own progress: normal gutter width on the way in, spreading to
+       the full screen edge as its centre rises through the 3/4 line (measured
+       from the TOP of the viewport), and staying spread once you are past it.
+       --tile-bleed cancels .showcase-cards' 40px side padding exactly, so the
+       card lands flush to the screen edge and no further; html and body are
+       both overflow-x:hidden, so the negative margin cannot start a sideways
+       scroll either way. --tile-x defaults to 0, the ordinary contained
+       layout, so no-JS and reduced-motion get the normal page. Height is
+       pinned by the script at --tile-x 0, the NARROW and therefore TALLEST
+       state: spreading reflows the text shorter, and pinning the short end
+       would let every tile below shift as you scrolled. */
+    .sc-card { --tile-x: 0; --tile-bleed: 40px;
+               margin-inline: calc(var(--tile-x) * var(--tile-bleed) * -1); }
+    .sc-grid.sc-tiles-pinned .sc-card { min-height: var(--tile-h, 300px); }
+    /* #sc-fw spreads too, but its STAGE must not. The stage is aspect-ratio
+       1.35/1, so if it tracked the card's width its height would swing ~25px
+       per scroll frame and it would rescale the burst against fitBurst()'s
+       measured fit. Pinning the stage to its contained width (set by the
+       script at --tile-x 0) keeps the firework pixel-identical and lets the
+       card's background alone bleed out around it. Scoped to :not(.is-expanded)
+       so the modal keeps sizing itself. */
+    .sc-grid.sc-tiles-pinned #sc-fw #fw-showcase:not(.is-expanded) {
+      width: var(--fw-w, auto); margin-inline: auto; }
     /* firework: taller stage + a smaller burst so the fixed 92-158px spark
        reach clears the narrow card AT EVERY orbit phase — perspective(780)
        magnifies near-side sparks ~1.17x, so the scale needs more headroom
@@ -3904,6 +3930,95 @@
 
   if(document.readyState !== 'loading') init();
   else document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+
+<!-- Phones: the same scroll-SCRUBBED widen, but per tile. The desktop effect
+     above drives one --expand for the whole grid; below 640px the cards stack,
+     so each one tracks its own position instead: inset when it enters from the
+     bottom, full width as it settles at mid-screen, reversing on scroll up.
+     Same passive rAF-throttled listener, same smoothstep, no library. -->
+<script>
+(function(){
+  var grid = document.querySelector('.sc-grid');
+  if(!grid) return;
+  var cards = [].slice.call(grid.querySelectorAll('.sc-card'));
+  var fwStage = grid.querySelector('#sc-fw #fw-showcase');
+  if(!cards.length) return;
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var phone  = window.matchMedia('(max-width: 640px)');
+  /* Measured from the TOP DOWN. Progress starts the moment the top of the
+     screen reaches the tile's top edge, then tracks how far down the tile the
+     screen top has travelled: fully spread once it is this fraction of the
+     tile's own height in. So the spread runs as you scroll PAST a tile, not as
+     it arrives from the bottom. Lower it to finish sooner. */
+  var SPREAD_DEPTH = 0.75;
+  var ticking = false, last = [];
+
+  function active(){ return phone.matches && !reduce.matches; }
+
+  /* Pin each card's height before any inset is applied. The margin animation is
+     a real width change, so the text reflows; unpinned, the page grows and
+     shrinks under you as you scroll. Measured at --tile-x 0, the NARROWEST and
+     therefore TALLEST state: pinning the wide height instead leaves the narrow
+     state's extra line with nowhere to go, which measured as a 20px document
+     shift (and .sc-card is overflow:hidden, so it would clip rather than show).
+     Pinning the tall end costs a few px of slack at the bottom of a settled
+     card and never clips. */
+  function pin(){
+    grid.classList.remove('sc-tiles-pinned');
+    cards.forEach(function(c){
+      c.style.removeProperty('--tile-h');
+      c.style.removeProperty('--tile-x');
+    });
+    if(fwStage) fwStage.style.removeProperty('--fw-w');
+    if(!active()) return;
+    cards.forEach(function(c){ c.style.setProperty('--tile-x','0'); });
+    cards.forEach(function(c){ c.style.setProperty('--tile-h', c.getBoundingClientRect().height + 'px'); });
+    /* Freeze the firework stage at its CONTAINED width before anything spreads,
+       so its aspect-ratio height stays put while its card bleeds out. */
+    if(fwStage) fwStage.style.setProperty('--fw-w', fwStage.getBoundingClientRect().width + 'px');
+    grid.classList.add('sc-tiles-pinned');
+  }
+
+  function smooth(p){ p = p < 0 ? 0 : p > 1 ? 1 : p; return p * p * (3 - 2 * p); }
+
+  function update(){
+    ticking = false;
+    if(!active()){ cards.forEach(function(c){ c.style.setProperty('--tile-x','0'); }); return; }
+    cards.forEach(function(c, i){
+      var r = c.getBoundingClientRect();
+      /* 0 while the tile is still below the top of the screen, then ramps as the
+         screen top travels down through it: 1 once it is SPREAD_DEPTH of the
+         tile's height in. Clamped, so a tile stays spread once you are past it
+         and is contained again if you scroll back above it. */
+      var travel = SPREAD_DEPTH * r.height;
+      var p = smooth(travel > 0 ? -r.top / travel : 0);
+      if(Math.abs(p - (last[i] === undefined ? -1 : last[i])) < 0.004) return;
+      last[i] = p;
+      c.style.setProperty('--tile-x', p.toFixed(3));
+    });
+  }
+  function onScroll(){ if(!ticking){ ticking = true; requestAnimationFrame(update); } }
+
+  function init(){ last = []; pin(); update(); }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  var rz;
+  window.addEventListener('resize', function(){
+    clearTimeout(rz);
+    rz = setTimeout(init, 160);          // re-pin: heights change with width
+  }, { passive: true });
+  if(reduce.addEventListener) reduce.addEventListener('change', init);
+
+  if(document.readyState !== 'loading') init();
+  else document.addEventListener('DOMContentLoaded', init);
+  /* Re-pin once everything has actually rendered. Some tiles finish later than
+     DOMContentLoaded (#sc-ask builds its chat demo), and a height measured
+     before that is stale: harmless while the card's natural height already
+     clears the pin, but wrong the moment a late-rendering tile is also
+     width-sensitive. Cheap insurance, one extra measure per page load. */
+  window.addEventListener('load', init);
 })();
 </script>
 </body>
