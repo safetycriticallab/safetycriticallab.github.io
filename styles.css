@@ -702,6 +702,41 @@ h2.section-title em { font-style: italic; color: var(--ink); font-family: var(--
     letter-spacing: 0.02em;
   }
 }
+/* Phone wordmark collapse — the same scroll-wipe the desktop bar has. The
+   collapse block above is gated at min-width:481px, and the phone block hid
+   .gn-text-full outright, so on phones the mark was a static "SCL" that never
+   animated. nav.js already toggles .gn-compact at every width, so this is CSS
+   only. Sized to fit rather than inherited: "SAFETY CRITICAL LABS" in uppercase
+   needs ~11.4px of width per 1px of font-size, and the bar leaves ~211px beside
+   the icons at 375px but only ~156px at 320px. clamp(12,3.9vw,16) measures 142px
+   at 320 and 167px at 375, clear at both. Declared after the phone block above
+   so it wins on source order without !important. */
+@media (max-width: 480.98px) {
+  /* .global-nav prefix is load-bearing: index.html's own <style> sets a bare
+     .gn-text-full { font-size: 19px } and cascades after this file, so an
+     unprefixed rule here loses the size on the homepage. */
+  .global-nav .gn-wordmark { position: relative; overflow: hidden; display: inline-flex; align-items: center; height: 30px; }
+  .global-nav .gn-text-full, .global-nav .gn-text-abbr { height: 30px; line-height: 30px; white-space: nowrap; }
+  .global-nav .gn-text-full {
+    display: block;
+    font-size: clamp(12px, 3.9vw, 16px);
+    letter-spacing: 0.02em;
+    opacity: 1; clip-path: inset(0 0 0 0);
+    transition: opacity 0.34s ease 0.30s, clip-path 0.44s cubic-bezier(0.5,0,0.2,1) 0.30s;
+  }
+  .global-nav .gn-text-abbr {
+    display: block; position: absolute; left: 0; top: 0;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s ease 0s;
+  }
+  .global-nav.gn-compact .gn-text-full { opacity: 0; clip-path: inset(0 100% 0 0); transition: opacity 0.34s ease 0s, clip-path 0.44s cubic-bezier(0.5,0,0.2,1) 0s; }
+  .global-nav.gn-compact .gn-text-abbr { opacity: 1; transition: opacity 0.3s ease 0.34s; }
+}
+@media (max-width: 480.98px) and (prefers-reduced-motion: reduce) {
+  .gn-text-full, .gn-text-abbr,
+  .global-nav.gn-compact .gn-text-full, .global-nav.gn-compact .gn-text-abbr { transition: none; }
+}
+
 /* Menu icon: ink navy like the rest of the bar (was legacy brand blue). */
 .gn-hamburger span { background: #0C2242; }
 @media (min-width: 881px) {
