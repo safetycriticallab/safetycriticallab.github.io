@@ -54,7 +54,7 @@ const MAX_HISTORY_MSG_CHARS = 1200;  // each turn truncated to this
 // Token budget guard. Measured with cl100k BPE, not the old chars/3.5 rule,
 // which under-counted headroom by ~25%: instructions 0.57k + FAQ 4.9k +
 // keyword and rescue excerpts <=3.5k at the full char cap + question ~0.14k
-// leaves ~1.0k of the 10240 num_ctx for history and generation. 2800 chars
+// leaves ~3.0k of the 12288 num_ctx for history and generation. 2800 chars
 // is ~0.76k tokens and keeps the grounding from being silently truncated by
 // a long conversation. Re-measure when faq.json grows.
 const MAX_HISTORY_TOTAL_CHARS = 2800;
@@ -63,7 +63,7 @@ const STREAM_IDLE_MS = 90000;        // per-read watchdog while streaming (first
 // Visitor-attached document excerpts (optional). 8000 chars ≈ 2.3k tokens;
 // with the FAQ dropped in document mode the budget is instructions ~0.6k +
 // doc <=2.3k + framework excerpts <=2.3k + rescues <=1.7k + history 0.8k +
-// question ≈ 7.9k, inside num_ctx 10240. Document mode drops the FAQ, so it
+// question ≈ 7.9k, inside num_ctx 12288. Document mode drops the FAQ, so it
 // is not the binding case for context; FAQ mode is.
 const MAX_DOC_NAME_CHARS = 120;
 const MAX_DOC_EXCERPT_CHARS = 8000;
@@ -80,7 +80,7 @@ const FRAMEWORK_URL = 'https://safetycriticallabs.com/framework.json';
 const UPSTREAM_TIMEOUT_MS = 90000; // cold start: model load + prompt eval can near a minute
 
 // Framework excerpts appended per question, capped so the whole prompt stays
-// inside num_ctx 10240: ~0.57k instructions + ~4.6k FAQ + <=3.5k keyword
+// inside num_ctx 12288: ~0.57k instructions + ~4.9k FAQ + <=3.5k keyword
 // and rescue excerpts + question. The offline bench at
 // scl-internal-main/ask-eval/ runs THIS file's own retrieval code (no mirror
 // to keep in lockstep); re-run it after touching scoring.
@@ -692,7 +692,13 @@ export default {
       const storedIds = [];
       const idRe = /^\[([^\]]+)\]/gm;
       let idm;
-      while ((idm = idRe.exec(excerpts)) !== null) storedIds.push(idm[1]);
+      /* Entry HEADERS only. The same regex also catches the [R.AI-x] and
+         [V.AI-x] requirement/verification markers inside an entry's body, which
+         would list one served entry three times and make a gap scan read as if
+         three answered it. */
+      while ((idm = idRe.exec(excerpts)) !== null) {
+        if (!/^[RV]\./.test(idm[1])) storedIds.push(idm[1]);
+      }
       ctx.waitUntil(storeQuestion(env, question, storedIds));
     }
 
@@ -711,21 +717,26 @@ export default {
           keep_alive: '1h',
           // num_ctx must clear instructions + FAQ + excerpts + history;
           // Ollama's default window would silently truncate the grounding.
-          // 10240, and the FAQ is sized to fit it. Measured with a real BPE
-          // tokenizer, not the old chars/3.5 rule which under-counted headroom
-          // by ~25%: 572 instructions + FAQ + <=3.5k excerpts at the full
-          // 8000+6000 char retrieval cap + 0.76k history + question + chat
-          // template must stay under 9940. That caps the FAQ at ~4.9k tokens;
-          // it is 4.6k at 31 entries, leaving ~370 spare. RE-MEASURE BEFORE
-          // ADDING FAQ ENTRIES. 12288 was tried and reverted: it fits in
-          // isolation (6.07 -> 6.35GB resident) but this 16GB host runs deep
-          // in swap in normal use, and forcing a reload at the larger window
-          // stalled generation past 300s. Keep OLLAMA_NUM_PARALLEL=1 on the
-          // host: Ollama's auto-parallelism multiplies this window per slot.
+          // 12288. Measured with a real BPE tokenizer, not the old chars/3.5
+          // rule which under-counted headroom by ~25%: 572 instructions + FAQ
+          // + <=3.5k excerpts at the full 8000+6000 char retrieval cap + 0.76k
+          // history + question + chat template + num_predict. At 10240 that
+          // left ~40 tokens once the FAQ reached 33 entries, which is no
+          // margin; at 12288 it is ~2.1k. RE-MEASURE BEFORE ADDING FAQ
+          // ENTRIES.
+          //   12288 was tried, reverted, and restored, so the history matters:
+          // the revert was measured while a stale local job was thrashing
+          // Ollama between three context sizes and a reload stalled past 300s.
+          // With OLLAMA_NUM_PARALLEL=1 and OLLAMA_MAX_LOADED_MODELS=2 set on
+          // the host, re-measured clean: llama 6.07 -> 6.35GB, co-resident
+          // with nomic at 6.72GB of ~10.5GB usable, and the bench's largest
+          // prompt (6863 tokens) answered in 45s including a cold load. The
+          // window size alone changes no answer: it is headroom, not content,
+          // so it cannot dilute the model the way extra excerpts do.
           // Excerpts go LAST in the system
           // block so the stable instructions+FAQ prefix stays reusable in
           // Ollama's KV prefix cache across questions.
-          options: { temperature: 0.2, num_ctx: 10240, num_predict: 300 },
+          options: { temperature: 0.2, num_ctx: 12288, num_predict: 300 },
           messages: [
             {
               role: 'system',

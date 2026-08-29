@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-28",
+  "updated": "2026-08-29",
   "note": "Question library for the Ask SCL page (search.html) and the ask worker grounding corpus (ask-worker.js). Single source of truth. Keep answers factual and do not overstate SCL's status.",
   "entries": [
     {
@@ -535,6 +535,51 @@
         "agreement"
       ],
       "link": "/contact"
+    },
+    {
+      "q": "Is there evidence the verification methods actually work?",
+      "a": "Yes. SCL applied the framework's verification methods to NASA's public C-MAPSS turbofan dataset and published the measured results, including the methods that failed their own subject. Every number is reproducible from an open repository. The evidence page shows what was measured.",
+      "keywords": [
+        "evidence",
+        "proof",
+        "demonstration",
+        "measured",
+        "works",
+        "validate",
+        "cmapss",
+        "c-mapss",
+        "nasa",
+        "turbofan",
+        "reproducible",
+        "real data",
+        "open repository",
+        "benchmark",
+        "results"
+      ],
+      "link": "/evidence"
+    },
+    {
+      "q": "Can we reproduce the framework in our own documents?",
+      "a": "Yes, under its licence. The framework is published under Creative Commons Attribution ShareAlike 4.0 and may be read, cited, and reproduced under those terms. ShareAlike means an adaptation you distribute has to carry the same licence. The SCL name, certification mark, and logo are separate from the framework licence and may be used only as expressly authorised in writing.",
+      "keywords": [
+        "licence",
+        "license",
+        "sharealike",
+        "creative commons",
+        "cc by-sa",
+        "reproduce",
+        "copy",
+        "reuse",
+        "redistribute",
+        "republish",
+        "quality manual",
+        "internal document",
+        "attribution",
+        "cite",
+        "logo",
+        "trademark"
+      ],
+      "link": "/documents"
     }
   ]
 }

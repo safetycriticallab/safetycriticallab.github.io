@@ -939,8 +939,11 @@
     if (threadFooter) return;
     threadFooter = document.createElement('div');
     threadFooter.innerHTML =
-      '<p class="ask-disclosure">' + ASK_DISCLOSURE + '</p>'
-      + consentHtml()
+      /* Consent FIRST, so it is the line directly under the composer rather
+         than the last thing on the page. It is a choice the visitor has to be
+         able to find; the disclosure below it is only informational. */
+      consentHtml()
+      + '<p class="ask-disclosure">' + ASK_DISCLOSURE + '</p>'
       + '<div class="ask-thread-footer"><button type="button" class="ask-new" id="ask-new">New conversation</button></div>'
       + relatedHtml(q);
     resultsWrap.appendChild(threadFooter);   /* below the composer, outside the list innerHTML wipes */
@@ -1434,6 +1437,12 @@
     showResults();
     composerDown();   /* adopt chat layout at send time, not answer time — the
                          conversation must never jump around the input mid-turn */
+    /* Footer at send time too, for the same reason and one more: the consent
+       row is the first line under the composer, and it has to exist while the
+       visitor is watching their FIRST answer stream in. Rendering it only on
+       completion meant the one control they might want to find did not exist
+       yet. Idempotent, so the finishAnswer call below is now a no-op. */
+    ensureThreadFooter(q);
     setQuery('');
     var sentHistory = convo.slice(-8);
     /* only question-relevant passages travel, selected fresh each turn */
