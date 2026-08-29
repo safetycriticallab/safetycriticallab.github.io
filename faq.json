@@ -403,7 +403,7 @@
     },
     {
       "q": "What powers Ask SCL?",
-      "a": "Ask SCL runs on SCL's own hardware. It is an open-weight large language model that SCL self-hosts, with answers grounded in the published FAQ and verbatim text from the AI Requirements Framework. SCL does not pin the assistant to a named model, and the model may change over time. Questions are not sent to any third-party AI service. It is an informational assistant only and plays no part in certification decisions.",
+      "a": "Ask SCL runs on SCL's own hardware. It is an open-weight large language model that SCL self-hosts, with answers grounded in the published FAQ and verbatim text from the AI Requirements Framework. Questions are not sent to any third-party AI service and are not retained unless you turn on question retention on the Ask page, which is off by default. It is an informational assistant only and plays no part in certification decisions.",
       "keywords": [
         "llm",
         "model",
@@ -415,7 +415,10 @@
         "local",
         "hardware",
         "private",
-        "language"
+        "language",
+        "retain",
+        "retention",
+        "stored"
       ],
       "link": "/search"
     },

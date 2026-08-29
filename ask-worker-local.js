@@ -442,8 +442,61 @@ function selectExcerpts(question, framework, qvec, vectors) {
   return parts.join('\n');
 }
 
+/* ── Opt-in question retention (2026-08-28) ───────────────────────────────
+   Questions are kept ONLY when the visitor ticks the box on the Ask page, and
+   only to find gaps in the published corpus. The design is deliberately
+   anonymous rather than pseudonymous, which is what lets it satisfy the
+   framework's own AI-10 without a rights-request pipeline:
+
+   - No IP, no session id, no user agent, no history. Nothing joins two rows.
+   - Date only, never a precise timestamp: a clock reading is a re-identifier
+     when traffic is this low.
+   - The question is scrubbed of emails, phone-shaped digit runs and long
+     key-like tokens before it is written (AI-10.4, privacy by technique
+     rather than by promise).
+   - DOCUMENT MODE IS NEVER STORED. Those excerpts are a third party's
+     confidential file; a visitor ticking a box cannot license their
+     employer's document for training.
+   - Genuinely anonymous data falls outside GDPR, so AI-10.3's access and
+     erasure duties do not attach. That is the whole reason for storing no
+     identifier: with one, SCL would owe a rights pipeline it does not have.
+   - The row's existence IS the consent record, and CONSENT_VERSION pins which
+     notice was agreed to (AI-10.7).
+
+   Storage is best-effort and never blocks or fails an answer: no ASK_LOG
+   binding, or any write error, and the assistant behaves exactly as before. */
+const CONSENT_VERSION = '2026-08-28';
+const MAX_STORED_QUESTION_CHARS = 500;
+
+function scrubForStorage(s) {
+  return String(s)
+    .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '[email]')          // addresses
+    .replace(/\b(?:\+?\d[\d ()-]{7,}\d)\b/g, '[number]')      // phone-shaped runs
+    .replace(/\b[A-Za-z0-9_-]{24,}\b/g, '[token]')            // key/token shaped
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_STORED_QUESTION_CHARS);
+}
+
+/* Called via ctx.waitUntil, so a slow or broken write cannot delay the answer. */
+async function storeQuestion(env, question, excerptIds) {
+  if (!env || !env.ASK_LOG) return;                            // binding absent -> no-op
+  try {
+    await env.ASK_LOG.prepare(
+      'INSERT INTO ask_questions (day, question, retrieved, consent_version) VALUES (?, ?, ?, ?)'
+    ).bind(
+      new Date().toISOString().slice(0, 10),                   // date only
+      scrubForStorage(question),
+      (excerptIds || []).join(',').slice(0, 300),              // which entries answered it
+      CONSENT_VERSION
+    ).run();
+  } catch (e) {
+    console.log('question retention write failed; answer unaffected');
+  }
+}
+
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const origin = request.headers.get('Origin') || '';
 
     if (request.method === 'OPTIONS') {
@@ -466,11 +519,13 @@ export default {
       return reply(413, { error: 'Missing or oversized request body' }, origin);
     }
 
-    let question, history, wantStream, doc;
+    let question, history, wantStream, doc, consent;
     try {
       const body = await request.json();
       question = typeof body.question === 'string' ? body.question.trim() : '';
       history = capHistory(body.history);
+      // Retention is opt-in: anything other than an explicit true means no.
+      consent = body.consent === true;
       wantStream = body.stream === true;
       // Optional visitor-document excerpts: untrusted, normalized by capping
       // like history. Anything malformed is treated as absent.
@@ -626,6 +681,19 @@ export default {
       }
     } catch (e) {
       excerpts = '';
+    }
+
+    /* Opt-in retention, written here so the row carries WHICH entries answered
+       the question: an empty `retrieved` is the signal that the corpus has a
+       gap, which is the entire reason for collecting. Deliberately excluded:
+       document mode (a third party's file) and the conversation history.
+       waitUntil keeps the write off the answer's critical path. */
+    if (consent && !doc && ctx && typeof ctx.waitUntil === 'function') {
+      const storedIds = [];
+      const idRe = /^\[([^\]]+)\]/gm;
+      let idm;
+      while ((idm = idRe.exec(excerpts)) !== null) storedIds.push(idm[1]);
+      ctx.waitUntil(storeQuestion(env, question, storedIds));
     }
 
     const controller = new AbortController();

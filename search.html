@@ -387,6 +387,23 @@
   color: rgba(12,34,66,0.6);
   margin: 12px 0 0;
 }
+/* Opt-in retention control. Sits with the disclosure, same muted weight: it is
+   a standing choice, not a call to action, and it must not compete with the
+   composer. align-items:flex-start keeps the box on the first line of wrapped
+   text rather than centred against the whole block. */
+.ask-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgba(12,34,66,0.6);
+  cursor: pointer;
+}
+.ask-consent input { margin: 3px 0 0; flex: none; cursor: pointer; }
+.ask-consent a { color: inherit; text-decoration: underline; }
+.ask-consent a:hover { color: var(--ink, #0F2340); }
 .search-loading {
   text-align: center;
   padding: 28px 0;
@@ -841,6 +858,27 @@
 
   var ASK_DISCLOSURE = 'Generated on SCL\'s own hardware by a self-hosted open-weight language model, from SCL\'s published documentation. Verify anything load-bearing against the standard.';
 
+  /* Opt-in question retention. Default OFF and it stays off unless the visitor
+     ticks the box, which is the consent the worker requires before it stores
+     anything. The preference is remembered per browser only; it is not an
+     account setting and nothing identifies the visitor either way. Wrapped in
+     try/catch because Safari private mode throws on localStorage access. */
+  var ASK_CONSENT_KEY = 'scl-ask-consent';
+  function askConsent() {
+    try { return localStorage.getItem(ASK_CONSENT_KEY) === '1'; } catch (e) { return false; }
+  }
+  function setAskConsent(on) {
+    try { on ? localStorage.setItem(ASK_CONSENT_KEY, '1') : localStorage.removeItem(ASK_CONSENT_KEY); } catch (e) {}
+  }
+  function consentHtml() {
+    return '<label class="ask-consent">'
+      + '<input type="checkbox" id="ask-consent-box"' + (askConsent() ? ' checked' : '') + '>'
+      + '<span>Let SCL keep my questions to improve this assistant. Off by default. '
+      + 'Questions are stored without any identifier and scrubbed of contact details. '
+      + 'Attached documents are never kept. <a href="/privacy#ask">How this works</a></span>'
+      + '</label>';
+  }
+
   function ensureThread() {
     if (thread && resultsList.contains(thread)) return;
     resultsList.innerHTML = '';
@@ -902,9 +940,12 @@
     threadFooter = document.createElement('div');
     threadFooter.innerHTML =
       '<p class="ask-disclosure">' + ASK_DISCLOSURE + '</p>'
+      + consentHtml()
       + '<div class="ask-thread-footer"><button type="button" class="ask-new" id="ask-new">New conversation</button></div>'
       + relatedHtml(q);
     resultsWrap.appendChild(threadFooter);   /* below the composer, outside the list innerHTML wipes */
+    var consentBox = document.getElementById('ask-consent-box');
+    if (consentBox) consentBox.addEventListener('change', function () { setAskConsent(this.checked); });
     document.getElementById('ask-new').addEventListener('click', function () {
       askGen++;   /* orphan any in-flight stream: its handlers check this */
       askBusy = false;
@@ -1415,9 +1456,12 @@
     fetch(ASK_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      /* consent is sent per request and only when the visitor has ticked the
+         box; the worker treats anything but an explicit true as no. Never sent
+         with an attached document: those excerpts are not ours to retain. */
       body: JSON.stringify(docPayload
         ? { question: q, history: sentHistory, stream: true, document: docPayload }
-        : { question: q, history: sentHistory, stream: true })
+        : { question: q, history: sentHistory, stream: true, consent: askConsent() })
     })
       .then(function (r) {
         var ct = r.headers.get('Content-Type') || '';
