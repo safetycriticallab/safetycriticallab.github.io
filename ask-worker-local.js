@@ -551,7 +551,56 @@ var RERANK_PIN_SCORE = 40;        // or when its keyword score shows exact-vocab
                                   // matches while the q25 trap top scores 11.2 and the q04
                                   // danger case 24.2, so 40 pins only unambiguous keyword wins
 
-async function rerankSelect(question, framework, qvec, vectors, env, guard, margin, pinMax, pinScoreArg) {
+/* ── Multi-query decomposition (8.3's escalation, authorized by the action 5
+   decision and the measured pair-class residue: q22, q29, and the rule 7
+   paraphrases). Deterministic by design: retrieval-only determinism is a
+   load-bearing instrument property (rule 9), so the split is a heuristic on
+   interrogative structure, never a model call. Sub-clauses lose their
+   subject ("does the framework permit THAT"), so every part carries the
+   question's declarative stem. Returns [] when the question is single-intent
+   so the unsplit path stays byte-identical. */
+var DECOMP_MAX_PARTS = 3;
+var DECOMP_MIN_CLAUSE_CHARS = 12;
+
+function decomposeQuestion(question) {
+  var q = question.trim();
+  // stem: declarative sentences before the first interrogative sentence
+  var sentences = q.split(/(?<=[.!?])\s+/);
+  var stem = [];
+  var rest = [];
+  var seenInterrogative = false;
+  for (var i = 0; i < sentences.length; i++) {
+    var sent = sentences[i];
+    var isQ = /\?\s*$/.test(sent) || /^(what|where|when|which|who|how|does|do|is|are|can|must|should|would|will|under what)\b/i.test(sent);
+    if (isQ) seenInterrogative = true;
+    (seenInterrogative ? rest : stem).push(sent);
+  }
+  var stemText = stem.join(' ').trim();
+  var body = rest.join(' ').trim();
+  if (!body) { body = q; stemText = ''; }
+
+  // split the interrogative body on clause joins and question boundaries
+  var parts = [];
+  var pieces = body.split(/\?\s+/);
+  for (var pI = 0; pI < pieces.length; pI++) {
+    var piece = pieces[pI].trim();
+    if (!piece) continue;
+    var sub = piece.split(/[,;]\s+(?=(?:and|or)\s+(?:(?:in|to|for|under|of|at)\s+)?(?:what|where|when|which|who|how|does|do|is|are|can|must|should|would|will|did|has|have)\b)/i);
+    for (var sI = 0; sI < sub.length; sI++) {
+      var clause = sub[sI].replace(/^(?:and|or)\s+/i, '').trim();
+      if (clause.length >= DECOMP_MIN_CLAUSE_CHARS) parts.push(clause);
+    }
+  }
+  if (parts.length < 2) return [];
+  parts = parts.slice(0, DECOMP_MAX_PARTS);
+  var out = [];
+  for (var oI = 0; oI < parts.length; oI++) {
+    out.push((stemText ? stemText + ' ' : '') + parts[oI]);
+  }
+  return out;
+}
+
+async function rerankSelect(question, framework, qvec, vectors, env, guard, margin, pinMax, pinScoreArg, parts, partVecs) {
   if (!env || !env.AI) return null;
   var sc = scoreEntries(question, framework);
   if (!sc) return null;
@@ -584,6 +633,40 @@ async function rerankSelect(question, framework, qvec, vectors, env, guard, marg
   }
   if (!candIds.length) return null;
 
+  /* Decomposition (8.3's escalation): per-part candidate pools widen the
+     fan-in for each intent, and coverage completion below guarantees each
+     part representation in the tail slots. The head of the block stays the
+     original-question ranking, so single-pass winners are undisturbed. */
+  var partCandSets = [];
+  if (Array.isArray(parts) && parts.length >= 2 && Array.isArray(partVecs) && partVecs.length === parts.length) {
+    for (var pp = 0; pp < parts.length; pp++) {
+      var psc = scoreEntries(parts[pp], framework);
+      var pIds = [];
+      var pSeen = {};
+      if (psc) {
+        for (var pk = 0; pk < psc.keep.length; pk++) {
+          var pkid = psc.keep[pk].c.id;
+          if (!pSeen[pkid]) { pSeen[pkid] = true; pIds.push(pkid); }
+        }
+      }
+      if (Array.isArray(partVecs[pp]) && partVecs[pp].length === vectors.dim) {
+        try {
+          var pcos = cosineAll(partVecs[pp], vectors);
+          var pByCos = [];
+          for (var pe = 0; pe < entries.length; pe++) pByCos.push({ sim: pcos[pe], id: entries[pe].id });
+          pByCos.sort(function (a, b) { return b.sim - a.sim; });
+          for (var pt = 0; pt < RERANK_COS_TOP && pt < pByCos.length; pt++) {
+            if (!pSeen[pByCos[pt].id]) { pSeen[pByCos[pt].id] = true; pIds.push(pByCos[pt].id); }
+          }
+        } catch (ee) {}
+      }
+      partCandSets.push(pIds);
+      for (var pu = 0; pu < pIds.length; pu++) {
+        if (!seen[pIds[pu]]) { seen[pIds[pu]] = true; candIds.push(pIds[pu]); }
+      }
+    }
+  }
+
   var contexts = [];
   for (var c2 = 0; c2 < candIds.length; c2++) contexts.push({ text: rerankWindow(byId[candIds[c2]]) });
   var resp;
@@ -608,6 +691,35 @@ async function rerankSelect(question, framework, qvec, vectors, env, guard, marg
   var order = candIds.slice().sort(function (a, b) {
     return (scoreById[b] !== undefined ? scoreById[b] : -1e9) - (scoreById[a] !== undefined ? scoreById[a] : -1e9);
   });
+
+  var partOrders = [];
+  for (var pr = 0; pr < partCandSets.length; pr++) {
+    var pcIds = partCandSets[pr];
+    if (!pcIds.length) { partOrders.push([]); continue; }
+    try {
+      var pCtx = [];
+      for (var pc2 = 0; pc2 < pcIds.length; pc2++) pCtx.push({ text: rerankWindow(byId[pcIds[pc2]]) });
+      var pResp = await Promise.race([
+        env.AI.run(RERANK_MODEL, { query: parts[pr], contexts: pCtx }),
+        new Promise(function (unused, rej) {
+          setTimeout(function () { rej(new Error('part rerank timeout')); }, RERANK_TIMEOUT_MS);
+        }),
+      ]);
+      var pRows = pResp && pResp.response;
+      var pScore = {};
+      if (Array.isArray(pRows)) {
+        for (var prw = 0; prw < pRows.length; prw++) {
+          if (typeof pRows[prw].id === 'number' && pcIds[pRows[prw].id] !== undefined) pScore[pcIds[pRows[prw].id]] = pRows[prw].score;
+        }
+      }
+      partOrders.push(pcIds.slice().sort(function (a, b) {
+        return (pScore[b] !== undefined ? pScore[b] : -1e9) - (pScore[a] !== undefined ? pScore[a] : -1e9);
+      }));
+    } catch (perr) {
+      console.log('part rerank unavailable; coverage completion skipped for part', pr, perr && perr.message);
+      partOrders.push([]);
+    }
+  }
 
   var picked = [];
   var used = 0;
@@ -660,6 +772,30 @@ async function rerankSelect(question, framework, qvec, vectors, env, guard, marg
     have[id2] = true;
   }
   if (!picked.length) return null;
+
+  // Coverage completion: a part whose top-3 part-ranked candidates all
+  // missed the block gets its best-fitting candidate in a tail slot. The
+  // head picks above are untouched, so this only ADDS the second intent's
+  // material, which is precisely the measured pair-class failure.
+  for (var cv = 0; cv < partOrders.length; cv++) {
+    var po = partOrders[cv];
+    if (!po.length) continue;
+    var covered = false;
+    for (var ct = 0; ct < 3 && ct < po.length; ct++) {
+      if (have[po[ct]]) { covered = true; break; }
+    }
+    if (covered) continue;
+    for (var ca = 0; ca < po.length && picked.length < EXCERPT_MAX_PICK + 1; ca++) {
+      var cid2 = po[ca];
+      if (have[cid2]) continue;
+      var cce = byId[cid2];
+      if (used + cce.text.length > EXCERPT_BUDGET_CHARS) continue;
+      used += cce.text.length;
+      picked.push(cce);
+      have[cid2] = true;
+      break;
+    }
+  }
   appendRescues(picked, entries, qvec, vectors);
 
   // Emit the block in keyword-score order: rerank decides WHICH entries are
@@ -725,6 +861,8 @@ async function benchRetrieve(request, env) {
   var fw = null;
   var vectors = null;
   var qvec = null;
+  var benchParts = decomposeQuestion(question);
+  var benchPartVecs = [];
   try {
     var results = await Promise.all([
       fetch(FRAMEWORK_URL, { cf: { cacheTtl: 300, cacheEverything: true } }),
@@ -733,15 +871,19 @@ async function benchRetrieve(request, env) {
         method: 'POST',
         headers: upstreamHeaders,
         signal: AbortSignal.timeout(EMBED_TIMEOUT_MS),
-        body: JSON.stringify({ model: EMBED_MODEL, keep_alive: '1h', input: EMBED_QUERY_PREFIX + question }),
+        body: JSON.stringify({ model: EMBED_MODEL, keep_alive: '1h',
+                               input: [question].concat(benchParts).map(function (t) { return EMBED_QUERY_PREFIX + t; }) }),
       }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
-        var v = j && Array.isArray(j.embeddings) && j.embeddings[0];
-        return Array.isArray(v) && v.length ? v : null;
+        var arr = j && Array.isArray(j.embeddings) ? j.embeddings : null;
+        if (!arr || !Array.isArray(arr[0]) || !arr[0].length) return null;
+        return arr;
       }).catch(function () { return null; }),
     ]);
     if (!results[0] || !results[0].ok) throw new Error('framework fetch failed');
     fw = await results[0].json();
-    qvec = results[2];
+    var embA = results[2];
+    qvec = embA ? embA[0] : null;
+    benchPartVecs = embA ? embA.slice(1) : [];
     if (qvec && results[1] && results[1].ok) {
       vectors = await results[1].json().catch(function () { return null; });
       if (!vectorsValid(vectors, fw)) vectors = null;
@@ -758,7 +900,9 @@ async function benchRetrieve(request, env) {
     var margin = (typeof body.margin === 'number') ? body.margin : 1.0;
     var rr = await rerankSelect(question, fw, vectors ? qvec : null, vectors, env, guard, margin,
                                 (typeof body.pin_max === 'number') ? body.pin_max : 0,
-                                (typeof body.pin_score === 'number') ? body.pin_score : 0);
+                                (typeof body.pin_score === 'number') ? body.pin_score : 0,
+                                benchParts, benchPartVecs);
+    out.decomp_parts = benchParts;
     if (rr) {
       out.rerank_used = true;
       out.guard = guard;
@@ -917,7 +1061,10 @@ export default {
       // the pre-hybrid behavior — never to a user-visible error.
       const embedController = new AbortController();
       const embedTimer = setTimeout(() => embedController.abort(), EMBED_TIMEOUT_MS);
-      const [fwResp, vecResp, qvec] = await Promise.all([
+      // Decomposition parts ride the same embed call as the main query, one
+      // batched request instead of extra round trips.
+      const decompParts = decomposeQuestion(retrievalQuery);
+      const [fwResp, vecResp, embArr] = await Promise.all([
         fetch(FRAMEWORK_URL, { cf: { cacheTtl: 300, cacheEverything: true } }),
         fetch(VECTORS_URL, {
           cf: { cacheTtl: 300, cacheEverything: true },
@@ -929,14 +1076,16 @@ export default {
           signal: embedController.signal,
           // keep_alive matches the chat call so the embed model's residency
           // on the 16GB host is deterministic, not the 5-minute default
-          body: JSON.stringify({ model: EMBED_MODEL, keep_alive: '1h', input: EMBED_QUERY_PREFIX + retrievalQuery }),
+          body: JSON.stringify({ model: EMBED_MODEL, keep_alive: '1h',
+                                 input: [retrievalQuery].concat(decompParts).map((t) => EMBED_QUERY_PREFIX + t) }),
         }).then((r) => {
           if (!r.ok) { if (r.body) r.body.cancel().catch(() => {}); return null; }
           return r.json();
         }).then((j) => {
-          // require a non-empty numeric vector: Ollama's [] is truthy
-          const v = j && Array.isArray(j.embeddings) && j.embeddings[0];
-          return Array.isArray(v) && v.length ? v : null;
+          // require non-empty numeric vectors: Ollama's [] is truthy
+          const arr = j && Array.isArray(j.embeddings) ? j.embeddings : null;
+          if (!arr || !Array.isArray(arr[0]) || !arr[0].length) return null;
+          return arr;
         }).catch(() => null),
       ]).finally(() => clearTimeout(embedTimer));
       if (fwResp && fwResp.ok) {
@@ -953,6 +1102,8 @@ export default {
           fw = await fwResp.json();
           if (fwTag && fw) { fwCacheTag = fwTag; fwCacheParsed = fw; }
         }
+        const qvec = embArr ? embArr[0] : null;
+        const partVecs = embArr ? embArr.slice(1) : [];
         let vectors = null;
         if (qvec && vecResp && vecResp.ok) {
           const tag = vecResp.headers.get('etag') || '';
@@ -976,7 +1127,8 @@ export default {
           // stand whenever rerank returns null, so the fallback chain never
           // leaves the answer ungrounded.
           var rr = await rerankSelect(retrievalQuery, fw, vectors ? qvec : null, vectors, env,
-                                      env.RERANK_GUARD || 'none', parseFloat(env.RERANK_MARGIN || '1'));
+                                      env.RERANK_GUARD || 'none', parseFloat(env.RERANK_MARGIN || '1'),
+                                      0, 0, decompParts, partVecs);
           if (rr) excerpts = rr.text;
         }
       }
