@@ -740,7 +740,8 @@ async function benchRetrieve(request, env) {
     return new Response(JSON.stringify({ error: 'grounding unavailable: ' + (e && e.message) }), { status: 503, headers: { 'Content-Type': 'application/json' } });
   }
 
-  var out = { rerank_requested: body.rerank === true, rerank_used: false, hybrid: !!(qvec && vectors) };
+  var out = { rerank_requested: body.rerank === true, rerank_used: false, hybrid: !!(qvec && vectors),
+              env_rerank: env.RERANK || null, env_guard: env.RERANK_GUARD || null };
   var excerpts = '';
   if (body.rerank === true) {
     var guard = (body.guard === 'section' || body.guard === 'sizelead' || body.guard === 'pintop') ? body.guard : 'none';
