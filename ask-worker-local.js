@@ -643,9 +643,11 @@ async function rerankSelect(question, framework, qvec, vectors, env, guard, marg
       var psc = scoreEntries(parts[pp], framework);
       var pIds = [];
       var pSeen = {};
+      var pSurvivors = {};
       if (psc) {
         for (var pk = 0; pk < psc.keep.length; pk++) {
           var pkid = psc.keep[pk].c.id;
+          pSurvivors[pkid] = true;
           if (!pSeen[pkid]) { pSeen[pkid] = true; pIds.push(pkid); }
         }
       }
@@ -664,7 +666,7 @@ async function rerankSelect(question, framework, qvec, vectors, env, guard, marg
       // the main pool let part-pool entrants displace head picks (measured:
       // p21a lost its pinned-class gate to app-a-cont2), violating the
       // head-untouched invariant this design promises.
-      partCandSets.push(pIds);
+      partCandSets.push({ ids: pIds, survivors: pSurvivors });
     }
   }
 
@@ -695,7 +697,7 @@ async function rerankSelect(question, framework, qvec, vectors, env, guard, marg
 
   var partOrders = [];
   for (var pr = 0; pr < partCandSets.length; pr++) {
-    var pcIds = partCandSets[pr];
+    var pcIds = partCandSets[pr].ids;
     if (!pcIds.length) { partOrders.push([]); continue; }
     try {
       var pCtx = [];
@@ -774,27 +776,29 @@ async function rerankSelect(question, framework, qvec, vectors, env, guard, marg
   }
   if (!picked.length) return null;
 
-  // Coverage completion: a part whose top-3 part-ranked candidates all
-  // missed the block gets its best-fitting candidate in a tail slot. The
-  // head picks above are untouched, so this only ADDS the second intent's
-  // material, which is precisely the measured pair-class failure.
-  for (var cv = 0; cv < partOrders.length; cv++) {
-    var po = partOrders[cv];
-    if (!po.length) continue;
-    var covered = false;
-    for (var ct = 0; ct < 3 && ct < po.length; ct++) {
-      if (have[po[ct]]) { covered = true; break; }
-    }
-    if (covered) continue;
-    for (var ca = 0; ca < po.length && picked.length < EXCERPT_MAX_PICK + 1; ca++) {
-      var cid2 = po[ca];
-      if (have[cid2]) continue;
+  // Coverage completion, final form (measured 2026-09-01): each part may add
+  // its best unpicked candidate from its top-4 part ranking, keyword
+  // survivors preferred over rank (the survivor channel is exact where the
+  // cross-encoder is noisy), two passes so both parts land one addition
+  // before any part lands two, at most 2 additions total. Head picks are
+  // never displaced; a covered-check was measured too lenient (q29's gold at
+  // part rank 3 was suppressed by picked noise at rank 1).
+  var additions = 0;
+  for (var pass = 0; pass < 2 && additions < 2; pass++) {
+    for (var cv = 0; cv < partOrders.length && additions < 2; cv++) {
+      var po = partOrders[cv];
+      if (!po.length) continue;
+      var window = po.slice(0, 4).filter(function (x) { return !have[x]; });
+      if (!window.length) continue;
+      var surv = partCandSets[cv].survivors;
+      window.sort(function (a, b) { return (surv[b] ? 1 : 0) - (surv[a] ? 1 : 0); });
+      var cid2 = window[0];
       var cce = byId[cid2];
       if (used + cce.text.length > EXCERPT_BUDGET_CHARS) continue;
       used += cce.text.length;
       picked.push(cce);
       have[cid2] = true;
-      break;
+      additions++;
     }
   }
   appendRescues(picked, entries, qvec, vectors);
