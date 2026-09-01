@@ -612,6 +612,8 @@ async function rerankSelect(question, framework, qvec, vectors, env, guard, marg
   var picked = [];
   var used = 0;
   var have = {};
+  rerankSelect.lastPinDebug = { keep0: sc.keep.length ? { id: sc.keep[0].c.id, score: sc.keep[0].s, chars: sc.keep[0].c.text.length } : null,
+                                guard: guard, pinned: false };
   // pintop guard: the keyword scorer is exact where the cross-encoder is
   // weakest (measured: q08's fabrication-trap gold and q40's profile entry
   // are keyword rank 1 and rerank-misranked). Pin the keyword top survivor
@@ -625,7 +627,10 @@ async function rerankSelect(question, framework, qvec, vectors, env, guard, marg
       used += topE.text.length;
       picked.push(topE);
       have[topE.id] = true;
+      rerankSelect.lastPinDebug.pinned = true;
     }
+    rerankSelect.lastPinDebug.cap = cap;
+    rerankSelect.lastPinDebug.pin_score = pinScore;
   }
   for (var p1 = 0; p1 < candIds.length && picked.length < EXCERPT_MAX_PICK; p1++) {
     var pid = candIds[p1];
@@ -761,6 +766,7 @@ async function benchRetrieve(request, env) {
       out.ids = rr.ids;
       out.scores = rr.scores;
       out.candidates = rr.candidates;
+      out.pin_debug = rerankSelect.lastPinDebug || null;
       excerpts = rr.text;
     }
   }
