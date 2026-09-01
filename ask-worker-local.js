@@ -323,9 +323,21 @@ function vectorsValid(vectors, framework) {
   return true;
 }
 
-function selectExcerpts(question, framework, qvec, vectors) {
+// Exact-id mention ("ai-4.1", "ai-12") with prefix-collision rejection: a
+// match followed by a digit is "ai-1" inside "ai-12" and does not count; a
+// following "." is the parent-area case and does.
+function idMentioned(qNorm, idLower) {
+  var p = qNorm.indexOf(idLower);
+  while (p !== -1 && /\d/.test(qNorm.charAt(p + idLower.length))) p = qNorm.indexOf(idLower, p + 1);
+  return p !== -1;
+}
+
+// Shared scoring core. selectExcerpts and rerankSelect both ride THIS scored
+// candidate list, so the rerank path cannot drift from the keyword path the
+// way a reimplementation would (the scoring_mirror lesson, applied in-worker).
+function scoreEntries(question, framework) {
   var entries = (framework && framework.entries) || [];
-  if (!entries.length) return '';
+  if (!entries.length) return null;
   var qTokens = tokenize(question).slice(0, MAX_QUERY_TOKENS);
   var qNorm = question.toLowerCase();
   var stems = qTokens.map(stemToken);
@@ -358,9 +370,7 @@ function selectExcerpts(question, framework, qvec, vectors) {
     // reject prefix collisions ("ai-1" inside "ai-12") by refusing matches
     // followed by a digit (a following "." is the parent-area case, kept).
     var idLower = c.id.toLowerCase();
-    var p = qNorm.indexOf(idLower);
-    while (p !== -1 && /\d/.test(qNorm.charAt(p + idLower.length))) p = qNorm.indexOf(idLower, p + 1);
-    if (p !== -1) score += 100;
+    if (idMentioned(qNorm, idLower)) score += 100;
     for (var j = 0; j < stems.length; j++) {
       // pair bonus first: it uses the raw tokens (always >=3 chars), so a
       // short stem must not suppress it
@@ -397,6 +407,14 @@ function selectExcerpts(question, framework, qvec, vectors) {
      measured on the ask-eval bench before this shape was chosen). ── */
   var keep = scored.filter(function (x) { return x.s >= floor; });
   keep.sort(function (a, b) { return b.s - a.s; });
+  return { entries: entries, qNorm: qNorm, keep: keep, floor: floor };
+}
+
+function selectExcerpts(question, framework, qvec, vectors) {
+  var sc = scoreEntries(question, framework);
+  if (!sc) return '';
+  var entries = sc.entries;
+  var keep = sc.keep;
   if (!keep.length) return '';
   var used = 0;
   var picked = [];
@@ -496,6 +514,231 @@ async function storeQuestion(env, question, excerptIds) {
   }
 }
 
+/* ── Step 1 rerank (improvement-framework.md 8.6, sized GO 2026-08-31) ────
+   Cross-encoder rescoring of the SAME candidates the keyword path scores.
+   Fan-in: keyword survivors union cosine top RERANK_COS_TOP. Exact-id pins
+   pick first, measured mandatory on the bench; the keyword top survivor is
+   deliberately NOT pinned, measured harmful. The anti-domination guard is
+   configurable and swept through the bench route before a value ships. Any
+   AI-side error or timeout returns null and the caller keeps the existing
+   keyword plus cosine excerpts: a rerank failure may never take the
+   grounding down with it. */
+var RERANK_MODEL = '@cf/baai/bge-reranker-base';
+var RERANK_COS_TOP = 50;
+var RERANK_WINDOW_CHARS = 2000;   // query plus window stays inside the model's 512-token pair cap
+var RERANK_TIMEOUT_MS = 5000;
+var RERANK_BIG_CHARS = 4000;      // over half the excerpt budget counts as budget-dominating
+
+function rerankWindow(c) {
+  // Measured 2026-08-31: the keyword block in the window is strictly better
+  // than title plus text alone (23/33 vs 19/33 on the sizing bench).
+  var head = c.title + ' | ' + (c.keywords || []).join(', ');
+  var room = RERANK_WINDOW_CHARS - head.length - 3;
+  if (room < 400) room = 400;
+  return head + ' | ' + c.text.slice(0, room);
+}
+
+var RERANK_PIN_MAX = 2000;        // keyword top survivor is pinned only when smaller than this
+
+async function rerankSelect(question, framework, qvec, vectors, env, guard, margin, pinMax) {
+  if (!env || !env.AI) return null;
+  var sc = scoreEntries(question, framework);
+  if (!sc) return null;
+  var entries = sc.entries;
+  if (!(qvec && vectors && Array.isArray(vectors.vecs) && vectors.vecs.length === entries.length
+        && qvec.length === vectors.dim)) return null;
+
+  var byId = {};
+  for (var i = 0; i < entries.length; i++) byId[entries[i].id] = entries[i];
+  var candIds = [];
+  var seen = {};
+  var survivors = {};
+  for (var k = 0; k < sc.keep.length; k++) {
+    var kid = sc.keep[k].c.id;
+    survivors[kid] = true;
+    if (!seen[kid]) { seen[kid] = true; candIds.push(kid); }
+  }
+  var cos;
+  try { cos = cosineAll(qvec, vectors); } catch (e) { return null; }
+  var byCos = [];
+  for (var e2 = 0; e2 < entries.length; e2++) byCos.push({ sim: cos[e2], id: entries[e2].id });
+  byCos.sort(function (a, b) { return b.sim - a.sim; });
+  for (var t = 0; t < RERANK_COS_TOP && t < byCos.length; t++) {
+    if (!seen[byCos[t].id]) { seen[byCos[t].id] = true; candIds.push(byCos[t].id); }
+  }
+  if (!candIds.length) return null;
+
+  var contexts = [];
+  for (var c2 = 0; c2 < candIds.length; c2++) contexts.push({ text: rerankWindow(byId[candIds[c2]]) });
+  var resp;
+  try {
+    resp = await Promise.race([
+      env.AI.run(RERANK_MODEL, { query: question, contexts: contexts }),
+      new Promise(function (unused, rej) {
+        setTimeout(function () { rej(new Error('rerank timeout')); }, RERANK_TIMEOUT_MS);
+      }),
+    ]);
+  } catch (err) {
+    console.log('rerank unavailable; keyword picks kept', err && err.message);
+    return null;
+  }
+  var rows = resp && resp.response;
+  if (!Array.isArray(rows) || !rows.length) return null;
+  var scoreById = {};
+  for (var r = 0; r < rows.length; r++) {
+    var idx = rows[r].id;
+    if (typeof idx === 'number' && candIds[idx] !== undefined) scoreById[candIds[idx]] = rows[r].score;
+  }
+  var order = candIds.slice().sort(function (a, b) {
+    return (scoreById[b] !== undefined ? scoreById[b] : -1e9) - (scoreById[a] !== undefined ? scoreById[a] : -1e9);
+  });
+
+  var picked = [];
+  var used = 0;
+  var have = {};
+  // pintop guard: the keyword scorer is exact where the cross-encoder is
+  // weakest (measured: q08's fabrication-trap gold and q40's profile entry
+  // are keyword rank 1 and rerank-misranked). Pin the keyword top survivor
+  // only when it is small; a large top pick would repeat the budget capture
+  // this same sweep measured under the top1-pin variant.
+  if (guard === 'pintop' && sc.keep.length) {
+    var topE = sc.keep[0].c;
+    var cap = (typeof pinMax === 'number' && pinMax > 0) ? pinMax : RERANK_PIN_MAX;
+    if (topE.text.length <= cap && used + topE.text.length <= EXCERPT_BUDGET_CHARS) {
+      used += topE.text.length;
+      picked.push(topE);
+      have[topE.id] = true;
+    }
+  }
+  for (var p1 = 0; p1 < candIds.length && picked.length < EXCERPT_MAX_PICK; p1++) {
+    var pid = candIds[p1];
+    if (have[pid]) continue;
+    if (!idMentioned(sc.qNorm, pid.toLowerCase())) continue;
+    var pe = byId[pid];
+    if (used + pe.text.length > EXCERPT_BUDGET_CHARS) continue;
+    used += pe.text.length;
+    picked.push(pe);
+    have[pid] = true;
+  }
+  for (var m = 0; m < order.length && picked.length < EXCERPT_MAX_PICK; m++) {
+    var id2 = order[m];
+    if (have[id2]) continue;
+    var ce = byId[id2];
+    if (guard === 'section' && id2.lastIndexOf('AI-', 0) !== 0 && !survivors[id2]) continue;
+    if (guard === 'sizelead' && ce.text.length > RERANK_BIG_CHARS) {
+      var next = null;
+      for (var n2 = m + 1; n2 < order.length; n2++) {
+        if (!have[order[n2]]) { next = order[n2]; break; }
+      }
+      if (next !== null && (scoreById[id2] || 0) - (scoreById[next] || 0) < margin) continue;
+    }
+    if (used + ce.text.length > EXCERPT_BUDGET_CHARS) continue;
+    used += ce.text.length;
+    picked.push(ce);
+    have[id2] = true;
+  }
+  if (!picked.length) return null;
+
+  var parts = ['\n\n--- Verbatim excerpts from the AI Requirements Framework v' + (framework.version || '3.6') + ' (cite these IDs) ---'];
+  var ids = [];
+  for (var n = 0; n < picked.length; n++) {
+    parts.push('\n[' + picked[n].id + '] ' + picked[n].title + '\n' + picked[n].text);
+    ids.push(picked[n].id);
+  }
+  return { text: parts.join('\n'), ids: ids, scores: scoreById, candidates: candIds.length };
+}
+
+function timingSafeEq(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  var r = 0;
+  for (var i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}
+
+/* ── Bench route (improvement-framework.md 8.4) ───────────────────────────
+   Returns the selected excerpt set for a question WITHOUT generating an
+   answer, so the eval bench grades deployed retrieval itself instead of a
+   local approximation. Token-gated and 404-silent without the token. The
+   rerank/guard/margin fields let guard variants be swept against production
+   infrastructure while visitors stay on the keyword path (RERANK off). */
+async function benchRetrieve(request, env) {
+  if (!env.BENCH_TOKEN) return new Response('Not found', { status: 404 });
+  var tok = request.headers.get('X-Bench-Token') || '';
+  if (!timingSafeEq(tok, env.BENCH_TOKEN)) return new Response('Not found', { status: 404 });
+  var body;
+  try { body = await request.json(); } catch (e) {
+    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+  }
+  var question = (body && typeof body.question === 'string') ? body.question.trim() : '';
+  if (!question || question.length > MAX_QUESTION_CHARS) {
+    return new Response(JSON.stringify({ error: 'Missing or oversized question' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  var upstreamHeaders = { 'Content-Type': 'application/json' };
+  if (env.CF_ACCESS_CLIENT_ID && env.CF_ACCESS_CLIENT_SECRET) {
+    upstreamHeaders['CF-Access-Client-Id'] = env.CF_ACCESS_CLIENT_ID;
+    upstreamHeaders['CF-Access-Client-Secret'] = env.CF_ACCESS_CLIENT_SECRET;
+  }
+  var fw = null;
+  var vectors = null;
+  var qvec = null;
+  try {
+    var results = await Promise.all([
+      fetch(FRAMEWORK_URL, { cf: { cacheTtl: 300, cacheEverything: true } }),
+      fetch(VECTORS_URL, { cf: { cacheTtl: 300, cacheEverything: true }, signal: AbortSignal.timeout(5000) }).catch(function () { return null; }),
+      fetch(env.OLLAMA_URL.replace(/\/+$/, '') + '/api/embed', {
+        method: 'POST',
+        headers: upstreamHeaders,
+        signal: AbortSignal.timeout(EMBED_TIMEOUT_MS),
+        body: JSON.stringify({ model: EMBED_MODEL, keep_alive: '1h', input: EMBED_QUERY_PREFIX + question }),
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+        var v = j && Array.isArray(j.embeddings) && j.embeddings[0];
+        return Array.isArray(v) && v.length ? v : null;
+      }).catch(function () { return null; }),
+    ]);
+    if (!results[0] || !results[0].ok) throw new Error('framework fetch failed');
+    fw = await results[0].json();
+    qvec = results[2];
+    if (qvec && results[1] && results[1].ok) {
+      vectors = await results[1].json().catch(function () { return null; });
+      if (!vectorsValid(vectors, fw)) vectors = null;
+    }
+  } catch (e) {
+    return new Response(JSON.stringify({ error: 'grounding unavailable: ' + (e && e.message) }), { status: 503, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  var out = { rerank_requested: body.rerank === true, rerank_used: false, hybrid: !!(qvec && vectors) };
+  var excerpts = '';
+  if (body.rerank === true) {
+    var guard = (body.guard === 'section' || body.guard === 'sizelead' || body.guard === 'pintop') ? body.guard : 'none';
+    var margin = (typeof body.margin === 'number') ? body.margin : 1.0;
+    var rr = await rerankSelect(question, fw, vectors ? qvec : null, vectors, env, guard, margin,
+                                (typeof body.pin_max === 'number') ? body.pin_max : 0);
+    if (rr) {
+      out.rerank_used = true;
+      out.guard = guard;
+      out.margin = margin;
+      out.ids = rr.ids;
+      out.scores = rr.scores;
+      out.candidates = rr.candidates;
+      excerpts = rr.text;
+    }
+  }
+  if (!excerpts) {
+    excerpts = selectExcerpts(question, fw, vectors ? qvec : null, vectors);
+    var ids = [];
+    var idRe = /^\[([^\]]+)\]/gm;
+    var im;
+    while ((im = idRe.exec(excerpts)) !== null) {
+      if (!/^[RV]\./.test(im[1])) ids.push(im[1]);
+    }
+    out.ids = ids;
+  }
+  out.excerpts_chars = excerpts.length;
+  out.excerpts = excerpts;
+  return new Response(JSON.stringify(out), { headers: { 'Content-Type': 'application/json' } });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const origin = request.headers.get('Origin') || '';
@@ -505,6 +748,9 @@ export default {
     }
     if (request.method !== 'POST') {
       return reply(405, { error: 'POST only' }, origin);
+    }
+    if (new URL(request.url).pathname === '/bench/retrieve') {
+      return benchRetrieve(request, env);
     }
     if (origin && !originAllowed(origin)) {
       return reply(403, { error: 'Origin not allowed' }, origin);
@@ -679,6 +925,14 @@ export default {
           vecResp.body.cancel().catch(() => {});
         }
         excerpts = selectExcerpts(retrievalQuery, fw, vectors ? qvec : null, vectors);
+        if (env.RERANK === 'on') {
+          // Flag-gated visitor path; the already-computed keyword excerpts
+          // stand whenever rerank returns null, so the fallback chain never
+          // leaves the answer ungrounded.
+          var rr = await rerankSelect(retrievalQuery, fw, vectors ? qvec : null, vectors, env,
+                                      env.RERANK_GUARD || 'none', parseFloat(env.RERANK_MARGIN || '1'));
+          if (rr) excerpts = rr.text;
+        }
       }
     } catch (e) {
       excerpts = '';
