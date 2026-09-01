@@ -410,22 +410,10 @@ function scoreEntries(question, framework) {
   return { entries: entries, qNorm: qNorm, keep: keep, floor: floor };
 }
 
-function selectExcerpts(question, framework, qvec, vectors) {
-  var sc = scoreEntries(question, framework);
-  if (!sc) return '';
-  var entries = sc.entries;
-  var keep = sc.keep;
-  if (!keep.length) return '';
-  var used = 0;
-  var picked = [];
-  for (var m = 0; m < keep.length && picked.length < EXCERPT_MAX_PICK; m++) {
-    var cc = keep[m].c;
-    if (used + cc.text.length > EXCERPT_BUDGET_CHARS) continue;
-    used += cc.text.length;
-    picked.push(cc);
-  }
-  if (!picked.length) return '';
-
+function appendRescues(picked, entries, qvec, vectors) {
+  // Verbatim production rescue: cosine top-RESCUE_TOP AI-* entries appended
+  // after the primary picks, never displacing them, on their own budget.
+  // Shared by the keyword and rerank paths so the mechanism cannot fork.
   if (qvec && vectors && Array.isArray(vectors.vecs) && vectors.vecs.length === entries.length
       && qvec.length === vectors.dim) {
     try {
@@ -454,6 +442,25 @@ function selectExcerpts(question, framework, qvec, vectors) {
       console.log('cosine rescue failed; keyword picks kept', err && err.message);
     }
   }
+}
+
+function selectExcerpts(question, framework, qvec, vectors) {
+  var sc = scoreEntries(question, framework);
+  if (!sc) return '';
+  var entries = sc.entries;
+  var keep = sc.keep;
+  if (!keep.length) return '';
+  var used = 0;
+  var picked = [];
+  for (var m = 0; m < keep.length && picked.length < EXCERPT_MAX_PICK; m++) {
+    var cc = keep[m].c;
+    if (used + cc.text.length > EXCERPT_BUDGET_CHARS) continue;
+    used += cc.text.length;
+    picked.push(cc);
+  }
+  if (!picked.length) return '';
+
+  appendRescues(picked, entries, qvec, vectors);
   var parts = ['\n\n--- Verbatim excerpts from the AI Requirements Framework v' + (framework.version || '3.6') + ' (cite these IDs) ---'];
   for (var n = 0; n < picked.length; n++) {
     parts.push('\n[' + picked[n].id + '] ' + picked[n].title + '\n' + picked[n].text);
@@ -638,6 +645,7 @@ async function rerankSelect(question, framework, qvec, vectors, env, guard, marg
     have[id2] = true;
   }
   if (!picked.length) return null;
+  appendRescues(picked, entries, qvec, vectors);
 
   var parts = ['\n\n--- Verbatim excerpts from the AI Requirements Framework v' + (framework.version || '3.6') + ' (cite these IDs) ---'];
   var ids = [];
