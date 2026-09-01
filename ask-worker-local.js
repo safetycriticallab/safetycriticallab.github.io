@@ -551,6 +551,11 @@ async function rerankSelect(question, framework, qvec, vectors, env, guard, marg
   if (!env || !env.AI) return null;
   var sc = scoreEntries(question, framework);
   if (!sc) return null;
+  // Company-question gate, unchanged from production: no keyword survivor
+  // means no excerpts, and neither the embedding nor the reranker overrides
+  // that. Bypassing it served comparison-inviting material to questions the
+  // assistant must decline (measured: q15's AMLAS decline broke, 3 of 3 runs).
+  if (!sc.keep.length) return null;
   var entries = sc.entries;
   if (!(qvec && vectors && Array.isArray(vectors.vecs) && vectors.vecs.length === entries.length
         && qvec.length === vectors.dim)) return null;
@@ -646,6 +651,26 @@ async function rerankSelect(question, framework, qvec, vectors, env, guard, marg
   }
   if (!picked.length) return null;
   appendRescues(picked, entries, qvec, vectors);
+
+  // Emit the block in keyword-score order: rerank decides WHICH entries are
+  // served, keyword rank decides the SEQUENCE, which is the anchoring order
+  // every measured generation baseline used (a rerank-scored sequence put
+  // app-d-cont ahead of AI-12.2 on q28 and broke its citation anchoring,
+  // 3 of 3 runs). Entries without a keyword score, pure rerank promotions
+  // and rescues, keep their relative order after the keyword-scored ones,
+  // which matches where production placed rescues.
+  var kwScore = {};
+  for (var ks = 0; ks < sc.keep.length; ks++) kwScore[sc.keep[ks].c.id] = sc.keep[ks].s;
+  var decorated = [];
+  for (var d = 0; d < picked.length; d++) {
+    decorated.push({ e: picked[d], kw: (kwScore[picked[d].id] !== undefined ? kwScore[picked[d].id] : -1), i: d });
+  }
+  decorated.sort(function (a, b) {
+    if ((a.kw >= 0) !== (b.kw >= 0)) return a.kw >= 0 ? -1 : 1;
+    if (a.kw >= 0 && b.kw >= 0 && a.kw !== b.kw) return b.kw - a.kw;
+    return a.i - b.i;
+  });
+  picked = decorated.map(function (x) { return x.e; });
 
   var parts = ['\n\n--- Verbatim excerpts from the AI Requirements Framework v' + (framework.version || '3.6') + ' (cite these IDs) ---'];
   var ids = [];
