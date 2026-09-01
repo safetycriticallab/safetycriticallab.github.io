@@ -660,10 +660,11 @@ async function rerankSelect(question, framework, qvec, vectors, env, guard, marg
           }
         } catch (ee) {}
       }
+      // Part pools feed ONLY coverage completion below. Unioning them into
+      // the main pool let part-pool entrants displace head picks (measured:
+      // p21a lost its pinned-class gate to app-a-cont2), violating the
+      // head-untouched invariant this design promises.
       partCandSets.push(pIds);
-      for (var pu = 0; pu < pIds.length; pu++) {
-        if (!seen[pIds[pu]]) { seen[pIds[pu]] = true; candIds.push(pIds[pu]); }
-      }
     }
   }
 
@@ -818,13 +819,18 @@ async function rerankSelect(question, framework, qvec, vectors, env, guard, marg
   });
   picked = decorated.map(function (x) { return x.e; });
 
-  var parts = ['\n\n--- Verbatim excerpts from the AI Requirements Framework v' + (framework.version || '3.6') + ' (cite these IDs) ---'];
+  rerankSelect.lastPartDebug = [];
+  for (var dv = 0; dv < partOrders.length; dv++) {
+    rerankSelect.lastPartDebug.push({ part: (Array.isArray(parts) && parts[dv]) || '', top5: partOrders[dv].slice(0, 5) });
+  }
+
+  var blockParts = ['\n\n--- Verbatim excerpts from the AI Requirements Framework v' + (framework.version || '3.6') + ' (cite these IDs) ---'];
   var ids = [];
   for (var n = 0; n < picked.length; n++) {
-    parts.push('\n[' + picked[n].id + '] ' + picked[n].title + '\n' + picked[n].text);
+    blockParts.push('\n[' + picked[n].id + '] ' + picked[n].title + '\n' + picked[n].text);
     ids.push(picked[n].id);
   }
-  return { text: parts.join('\n'), ids: ids, scores: scoreById, candidates: candIds.length };
+  return { text: blockParts.join('\n'), ids: ids, scores: scoreById, candidates: candIds.length };
 }
 
 function timingSafeEq(a, b) {
@@ -911,6 +917,7 @@ async function benchRetrieve(request, env) {
       out.scores = rr.scores;
       out.candidates = rr.candidates;
       out.pin_debug = rerankSelect.lastPinDebug || null;
+      out.part_debug = rerankSelect.lastPartDebug || null;
       excerpts = rr.text;
     }
   }
