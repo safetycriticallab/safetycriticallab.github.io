@@ -546,8 +546,12 @@ function rerankWindow(c) {
 }
 
 var RERANK_PIN_MAX = 2000;        // keyword top survivor is pinned only when smaller than this
+var RERANK_PIN_SCORE = 40;        // or when its keyword score shows exact-vocabulary confidence:
+                                  // measured 2026-09-01, q21's gate chunk scores 75.6 on phrase
+                                  // matches while the q25 trap top scores 11.2 and the q04
+                                  // danger case 24.2, so 40 pins only unambiguous keyword wins
 
-async function rerankSelect(question, framework, qvec, vectors, env, guard, margin, pinMax) {
+async function rerankSelect(question, framework, qvec, vectors, env, guard, margin, pinMax, pinScoreArg) {
   if (!env || !env.AI) return null;
   var sc = scoreEntries(question, framework);
   if (!sc) return null;
@@ -616,7 +620,8 @@ async function rerankSelect(question, framework, qvec, vectors, env, guard, marg
   if (guard === 'pintop' && sc.keep.length) {
     var topE = sc.keep[0].c;
     var cap = (typeof pinMax === 'number' && pinMax > 0) ? pinMax : RERANK_PIN_MAX;
-    if (topE.text.length <= cap && used + topE.text.length <= EXCERPT_BUDGET_CHARS) {
+    var pinScore = (typeof pinScoreArg === 'number' && pinScoreArg > 0) ? pinScoreArg : RERANK_PIN_SCORE;
+    if ((topE.text.length <= cap || sc.keep[0].s >= pinScore) && used + topE.text.length <= EXCERPT_BUDGET_CHARS) {
       used += topE.text.length;
       picked.push(topE);
       have[topE.id] = true;
@@ -747,7 +752,8 @@ async function benchRetrieve(request, env) {
     var guard = (body.guard === 'section' || body.guard === 'sizelead' || body.guard === 'pintop') ? body.guard : 'none';
     var margin = (typeof body.margin === 'number') ? body.margin : 1.0;
     var rr = await rerankSelect(question, fw, vectors ? qvec : null, vectors, env, guard, margin,
-                                (typeof body.pin_max === 'number') ? body.pin_max : 0);
+                                (typeof body.pin_max === 'number') ? body.pin_max : 0,
+                                (typeof body.pin_score === 'number') ? body.pin_score : 0);
     if (rr) {
       out.rerank_used = true;
       out.guard = guard;
