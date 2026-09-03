@@ -120,6 +120,7 @@
 
 /* ── Document attachment (ask mode) ── */
 .ask-attach-btn {
+  position: relative;
   display: inline-flex; align-items: center; justify-content: center;
   width: 40px; height: 40px; flex-shrink: 0;
   border: none; border-radius: 6px; background: transparent;
@@ -127,6 +128,15 @@
   transition: background 0.2s, color 0.2s;
 }
 .ask-attach-btn:hover { background: rgba(46,109,180,0.10); color: #0C2242; }
+/* A document sent with an earlier turn is still searched on every follow-up.
+   The composer no longer carries its chip, so the paperclip is the standing
+   signal that it is there, and the control that brings it back. */
+.ask-attach-btn.is-attached { background: rgba(46,109,180,0.12); color: var(--blue); }
+.ask-attach-btn.is-attached::after {
+  content: ''; position: absolute; top: 6px; right: 6px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--blue); border: 1.5px solid var(--paper, #FAF9F5);
+}
 .ask-attachment { display: none; }
 .ask-attachment.visible { display: block; }
 .ask-chip {
@@ -335,6 +345,22 @@
   overflow-wrap: anywhere;
   white-space: pre-wrap;   /* the composer can hold newlines now (shift+enter) */
 }
+/* The attachment travels WITH the message it was sent on, the way it reads in
+   any chat client: flex forces its own line, and fit-content keeps the bubble
+   from stretching to the chip's max width. */
+.ask-msg-user-doc {
+  display: flex; align-items: center; gap: 6px;
+  width: fit-content; max-width: 100%;
+  margin: 0 0 8px;
+  font-family: var(--mono); font-size: 11.5px; line-height: 1.4;
+  color: rgba(250,249,245,0.92);
+  background: rgba(250,249,245,0.12);
+  border: 1px solid rgba(250,249,245,0.24); border-radius: 6px;
+  padding: 4px 9px;
+  white-space: nowrap;
+}
+.ask-msg-user-doc svg { flex-shrink: 0; opacity: 0.8; }
+.ask-msg-user-doc-name { overflow: hidden; text-overflow: ellipsis; }
 .ask-msg-ai { align-self: flex-start; max-width: 85%; }
 .ask-msg-body {
   margin: 0;
@@ -1160,10 +1186,28 @@
     });
   }
 
-  function addUserMsg(q) {
+  /* doc is the attachment that travelled with THIS turn, or null. Its name is
+     untrusted: textContent only. No child text nodes are created between the
+     chip and the question, because the bubble is white-space: pre-wrap and
+     would render the gap. */
+  function addUserMsg(q, doc) {
     var el = document.createElement('div');
     el.className = 'ask-msg-user';
-    el.textContent = q;
+    if (doc) {
+      var chip = document.createElement('span');
+      chip.className = 'ask-msg-user-doc';
+      chip.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>';
+      var chipName = document.createElement('span');
+      chipName.className = 'ask-msg-user-doc-name';
+      chipName.textContent = doc.name;
+      chip.appendChild(chipName);
+      el.appendChild(chip);
+      var textEl = document.createElement('span');
+      textEl.textContent = q;
+      el.appendChild(textEl);
+    } else {
+      el.textContent = q;
+    }
     thread.appendChild(el);
     scrollThreadBottom();
   }
@@ -1573,8 +1617,9 @@
   function renderAttachment(state) {
     var seq = ++renderSeq;
     attachWrap.innerHTML = '';
-    if (!state) { attachWrap.classList.remove('visible'); return; }
+    if (!state) { attachWrap.classList.remove('visible'); setAttachBtnState(); return; }
     attachWrap.classList.add('visible');
+    setAttachBtnState();
     setTimeout(function () {
       if (seq !== renderSeq) return;
       if (state.error) {
@@ -1623,12 +1668,43 @@
     }, 30);
   }
 
+  /* The paperclip is three things at once, and its label has to say which:
+     attach (nothing held), show the held document, hide it again. */
+  function setAttachBtnState() {
+    var held = !!attachedDoc;
+    var open = attachWrap.classList.contains('visible');
+    attachBtn.classList.toggle('is-attached', held);
+    var label = !held ? 'Attach a document. PDF, DOCX, TXT, or MD.'
+      : open ? 'Hide the attached document, ' + attachedDoc.name + '.'
+             : 'Attached: ' + attachedDoc.name + '. Show it.';
+    attachBtn.setAttribute('aria-label', label);
+    attachBtn.setAttribute('aria-expanded', held && open ? 'true' : 'false');
+    attachBtn.title = !held ? 'Attach a document' : attachedDoc.name;
+  }
+
+  /* The chip is drawn on the turn the document JOINED the conversation and not
+     on the turns after it, even though every one of those turns carries fresh
+     excerpts: repeating it on each bubble is the same clutter the composer had.
+     The lit paperclip is the standing signal instead. */
+  var docShownInThread = false;
+  function chipForThisTurn() {
+    return (attachedDoc && !docShownInThread) ? attachedDoc : null;
+  }
+
+  /* Sending puts the chip in the message it went with, so the composer comes
+     back empty. The document itself is NOT dropped: selectDocExcerpts re-picks
+     passages for every follow-up. */
+  function stowAttachment() {
+    if (attachedDoc) { docShownInThread = true; renderAttachment(null); }
+  }
+
   /* attachGen orphans an in-flight extraction when the attachment is removed
      or the conversation is reset: its late result must not re-attach. */
   var attachGen = 0;
   function clearAttachment(announce) {
     attachGen++;
     attachedDoc = null;
+    docShownInThread = false;
     if (announce === true) {
       renderAttachment({ note: 'Attachment removed.' });
       attachBtn.focus();   /* the remove button just destroyed itself */
@@ -1665,6 +1741,7 @@
           wordCount: built.wordCount,
           truncated: built.truncated || extracted.truncated
         };
+        docShownInThread = false;   /* a replacement earns its own chip */
         renderAttachment({ doc: attachedDoc });
         input.focus();
       })
@@ -1685,7 +1762,11 @@
   }
 
   if (askMode) {
-    attachBtn.addEventListener('click', function () { fileInput.click(); });
+    attachBtn.addEventListener('click', function () {
+      if (!attachedDoc) { fileInput.click(); return; }
+      if (attachWrap.classList.contains('visible')) renderAttachment(null);
+      else renderAttachment({ doc: attachedDoc });
+    });
     fileInput.addEventListener('change', function () {
       if (this.files && this.files[0]) handleAttachFile(this.files[0]);
       this.value = '';   /* same file can be re-attached after edits */
@@ -1734,7 +1815,8 @@
     var gen = askGen;
     var firstTurn = convo.length === 0;
     ensureThread();
-    addUserMsg(q);
+    addUserMsg(q, chipForThisTurn());
+    stowAttachment();
     var ai = addAiMsg();
     resultsLabel.textContent = 'Ask SCL';
     showResults();
