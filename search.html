@@ -450,11 +450,12 @@
   border-bottom: 1px solid rgba(46,109,180,0.16);
 }
 .chat-avatar {
+  display: block;
   width: 42px; height: 42px; border-radius: 50%;
   border: 1px solid rgba(46,109,180,0.3);
   background: #fff;
   flex: none;
-  object-fit: cover;
+  overflow: hidden;
   box-shadow: 0 1px 4px rgba(15,35,64,0.08);
 }
 .chat-header-name {
@@ -517,11 +518,12 @@
 /* AI messages carry the certification-mark avatar beside the bubble */
 .ask-msg-ai { display: flex; gap: 10px; }
 .ask-msg-avatar {
+  display: block;
   width: 28px; height: 28px; border-radius: 50%;
   border: 1px solid rgba(46,109,180,0.28);
   background: #fff;
   flex: none;
-  object-fit: cover;
+  overflow: hidden;
   margin-top: 1px;
 }
 .ask-msg-content { min-width: 0; }
@@ -550,6 +552,77 @@
   30% { transform: translateY(-4px); opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) { .ask-typing span { animation: none; } }
+
+/* ── The Instrument ──
+   The seal rebuilt as vector geometry so the avatar is a live status
+   instrument, not a photo. Motion language: slow, constant-speed, optical.
+   States are classes on the svg: is-thinking (gold arc sweeps), is-streaming
+   (sweep quickens, lens brightens), is-done (arc closes the full circle and
+   fades), is-error (the instrument dims briefly). Idle is a 4s lens breath.
+   Every hidden-to-visible step lives in keyframe from-blocks, so with
+   animations disabled the finished seal simply stands there. */
+.scl-inst { display: block; width: 100%; height: 100%; }
+.scl-inst circle, .scl-inst rect { transform-origin: 50% 50%; }
+.scl-inst .in-outer { fill: #fff; stroke: #0F2647; stroke-width: 5; }
+.scl-inst .in-text {
+  fill: none; stroke: rgba(12,34,66,0.4); stroke-width: 3;
+  stroke-dasharray: 0.9 1.7;   /* micro-text illusion at avatar sizes */
+}
+.scl-inst .in-gold { fill: none; stroke: #D4A02F; stroke-width: 3.4; }
+.scl-inst .in-thin1 { fill: none; stroke: rgba(12,34,66,0.5); stroke-width: 1; }
+.scl-inst .in-thin2 { fill: none; stroke: rgba(46,109,180,0.55); stroke-width: 1; }
+.scl-inst .in-lens { fill: #0E2A52; }
+.scl-inst .in-lens-rim { fill: none; stroke: #D4A02F; stroke-width: 1.6; }
+.scl-inst .in-core { fill: #6FA0DC; }
+.scl-inst .in-bar { fill: #6FA0DC; }
+.scl-inst .in-sweep {
+  fill: none; stroke: #D4A02F; stroke-width: 3;
+  stroke-linecap: round; stroke-dasharray: 14 86;
+  opacity: 0;
+}
+/* Idle: the lens breathes, barely */
+.scl-inst .in-core { animation: inst-breathe 4s ease-in-out infinite; }
+@keyframes inst-breathe { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+/* Thinking and streaming: the sweep */
+.scl-inst.is-thinking .in-sweep { opacity: 1; animation: inst-rot 2.4s linear infinite; }
+.scl-inst.is-streaming .in-sweep { opacity: 1; animation: inst-rot 1.1s linear infinite; }
+.scl-inst.is-streaming .in-core { animation: inst-breathe 1.1s ease-in-out infinite; }
+@keyframes inst-rot { to { transform: rotate(360deg); } }
+/* Done: the arc closes the circle and lets go */
+.scl-inst.is-done .in-sweep { animation: inst-close 0.8s ease-out 1 both; }
+@keyframes inst-close {
+  from { opacity: 1; stroke-dasharray: 14 86; }
+  70%  { opacity: 1; stroke-dasharray: 100 0; }
+  to   { opacity: 0; stroke-dasharray: 100 0; }
+}
+/* Error: dim, recover. No red, no alarm. */
+.scl-inst.is-error { animation: inst-dim 1s ease 1; }
+@keyframes inst-dim { 30% { opacity: 0.45; } }
+
+/* Entrance: the seal draws itself, hero only, once per load.
+   Rings trace in sequence, then the interior fades up. */
+.hero-seal { width: 76px; height: 76px; margin: 0 auto 22px; }
+.search-page.chat-active .hero-seal { display: none; }
+.scl-inst.is-entrance .in-outer { animation: inst-draw 0.7s ease-out both; }
+.scl-inst.is-entrance .in-gold { animation: inst-draw 0.7s ease-out 0.2s both; }
+.scl-inst.is-entrance .in-thin1 { animation: inst-draw 0.6s ease-out 0.4s both; }
+.scl-inst.is-entrance .in-thin2 { animation: inst-draw 0.6s ease-out 0.5s both; }
+.scl-inst.is-entrance .in-lens-rim { animation: inst-draw 0.6s ease-out 0.6s both; }
+@keyframes inst-draw {
+  from { stroke-dasharray: 100; stroke-dashoffset: 100; }
+  to   { stroke-dasharray: 100; stroke-dashoffset: 0; }
+}
+.scl-inst.is-entrance .in-text,
+.scl-inst.is-entrance .in-lens,
+.scl-inst.is-entrance .in-bar { animation: inst-fade 0.5s ease 0.75s both; }
+.scl-inst.is-entrance .in-core {
+  animation: inst-fade 0.5s ease 0.75s both,
+             inst-breathe 4s ease-in-out 1.4s infinite;
+}
+@keyframes inst-fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .scl-inst circle, .scl-inst rect, .scl-inst { animation: none !important; }
+}
 
 @media (max-width: 640px) {
   .search-page { padding: 56px 24px 80px; }
@@ -618,12 +691,13 @@
 <section class="search-page">
   <div class="search-inner">
 
+    <div class="hero-seal" id="hero-seal" aria-hidden="true"></div>
     <div class="search-eyebrow">[ Ask SCL ]</div>
     <h1 class="search-title">What do you want to know?</h1>
     <p class="search-lead" id="search-lead">Search common questions about AI certification, the framework, the process, and accreditation.</p>
 
     <div class="chat-header">
-      <img class="chat-avatar" src="img/ask-avatar.png" alt="" width="42" height="42">
+      <span class="chat-avatar" id="chat-avatar-slot" aria-hidden="true"></span>
       <div>
         <div class="chat-header-name">Ask SCL</div>
         <div class="chat-header-status"><span class="chat-status-dot" aria-hidden="true"></span>AI assistant &middot; grounded in SCL documentation</div>
@@ -783,6 +857,39 @@
     '/evidence': 'See the measured evidence'
   };
 
+  /* ── The Instrument: the seal as live SVG. One geometry, three homes
+     (hero entrance, chat header, per-message avatar). State classes on the
+     svg element drive the CSS animations; setInst is the only writer. ── */
+  function instrumentSvg(extra) {
+    return '<svg class="scl-inst' + (extra ? ' ' + extra : '') + '" viewBox="0 0 100 100" aria-hidden="true">'
+      + '<circle class="in-outer" cx="50" cy="50" r="46.5" pathLength="100"/>'
+      + '<circle class="in-text" cx="50" cy="50" r="39" pathLength="100"/>'
+      + '<circle class="in-gold" cx="50" cy="50" r="30.5" pathLength="100"/>'
+      + '<circle class="in-thin1" cx="50" cy="50" r="24" pathLength="100"/>'
+      + '<circle class="in-thin2" cx="50" cy="50" r="18.5" pathLength="100"/>'
+      + '<circle class="in-lens" cx="50" cy="50" r="12.5"/>'
+      + '<circle class="in-lens-rim" cx="50" cy="50" r="12.5" pathLength="100"/>'
+      + '<rect class="in-bar" x="39" y="48.5" width="22" height="3" rx="1.5"/>'
+      + '<circle class="in-core" cx="50" cy="50" r="4.6"/>'
+      + '<circle class="in-sweep" cx="50" cy="50" r="42.5" pathLength="100"/>'
+      + '</svg>';
+  }
+  var INST_STATES = ['is-thinking', 'is-streaming', 'is-done', 'is-error'];
+  function setInst(svg, state) {
+    if (!svg) return;
+    for (var i = 0; i < INST_STATES.length; i++) svg.classList.remove(INST_STATES[i]);
+    if (state) svg.classList.add('is-' + state);
+  }
+  /* Header instrument mirrors whichever message is in flight */
+  var headerInst = null;
+  function setActivity(ai, state) {
+    setInst(headerInst, state);
+    if (ai && ai.inst) setInst(ai.inst, state);
+  }
+  function settleActivity(ai, delay) {
+    setTimeout(function () { setActivity(ai, null); }, delay);
+  }
+
   /* DOM refs */
   var pageEl       = document.querySelector('.search-page');
   var input        = document.getElementById('search-input');
@@ -792,6 +899,15 @@
   var resultsList  = document.getElementById('search-results-list');
   var resultsLabel = document.getElementById('search-results-label');
   var lead         = document.getElementById('search-lead');
+
+  /* Mount the instruments: hero draws itself once, header idles until used */
+  var heroSeal = document.getElementById('hero-seal');
+  if (heroSeal) heroSeal.innerHTML = instrumentSvg('is-entrance');
+  var headerSlot = document.getElementById('chat-avatar-slot');
+  if (headerSlot) {
+    headerSlot.innerHTML = instrumentSvg();
+    headerInst = headerSlot.querySelector('svg');
+  }
 
   /* The composer is a textarea: grow it to fit what has been typed (capped by
      the CSS max-height, after which it scrolls) so a long question stays
@@ -1055,11 +1171,10 @@
   function addAiMsg() {
     var art = document.createElement('article');
     art.className = 'ask-msg-ai';
-    var avatar = document.createElement('img');
+    var avatar = document.createElement('span');
     avatar.className = 'ask-msg-avatar';
-    avatar.src = 'img/ask-avatar.png';
-    avatar.alt = '';
-    avatar.width = 28; avatar.height = 28;
+    avatar.setAttribute('aria-hidden', 'true');
+    avatar.innerHTML = instrumentSvg();
     var content = document.createElement('div');
     content.className = 'ask-msg-content';
     content.innerHTML = '<div class="ask-answer-tag">Ask SCL &middot; AI answer</div>';
@@ -1082,7 +1197,10 @@
     art.appendChild(content);
     thread.appendChild(art);
     scrollThreadBottom();
-    return { art: art, body: body, textNode: textNode, caret: caret, dots: dots };
+    var handle = { art: art, body: body, textNode: textNode, caret: caret, dots: dots,
+                   inst: avatar.querySelector('svg') };
+    setActivity(handle, 'thinking');
+    return handle;
   }
 
   /* In chat mode every scroll targets the thread region ONLY: scrollIntoView
@@ -1112,6 +1230,8 @@
     ai.art.classList.add('ask-msg-note');
     ai.body.textContent = text;   /* wholesale overwrite: typing dots included */
     ai.dots = null;
+    setActivity(ai, 'error');   /* dim, recover; no alarm */
+    settleActivity(ai, 1100);
     resultsLabel.textContent = 'Ask SCL';
   }
 
@@ -1132,6 +1252,7 @@
     document.getElementById('ask-new').addEventListener('click', function () {
       askGen++;   /* orphan any in-flight stream: its handlers check this */
       askBusy = false;
+      setInst(headerInst, null);
       convo = []; thread = null;
       clearAttachment();   /* the document belongs to the conversation */
       composerHome();
@@ -1145,6 +1266,8 @@
   function finishAnswer(ai, text, q, firstTurn) {
     ai.body.innerHTML = citeChips(text);
     ai.textNode = null; ai.caret = null; ai.dots = null;   /* replaced by the linkified render */
+    setActivity(ai, 'done');   /* the arc closes the circle and lets go */
+    settleActivity(ai, 900);
     convo.push({ role: 'assistant', content: text });
     resultsLabel.textContent = 'Conversation';
     input.placeholder = 'Ask a follow-up';
@@ -1674,6 +1797,7 @@
                 ai.dots = null;
                 ai.body.appendChild(ai.textNode);
                 ai.body.appendChild(ai.caret);
+                setActivity(ai, 'streaming');
               }
               ai.textNode.appendData(chunk);   /* delta append: role=log announces additions, not rereads */
               followIfNearBottom(ai.art);
